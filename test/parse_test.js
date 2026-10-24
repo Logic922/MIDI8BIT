@@ -30,10 +30,15 @@ const ROOT = path.resolve(__dirname, '..');
 const HTML = path.join(ROOT, "src", "02-midi.js");   // 解析器区段在源码里（产物已剥离注释，标记不再保留）
 const MARK_A = '[PARSE-BEGIN]', MARK_B = '[PARSE-END]';
 
-let pass = 0, fail = 0;
+let pass = 0, fail = 0, skip = 0;
 function ok(name, cond, extra){
   if(cond){ pass++; console.log('  PASS  ' + name + (extra ? '  ' + extra : '')); }
   else { fail++; console.log('  FAIL  ' + name + (extra ? '  ' + extra : '')); }
+}
+/* ★ 大样本 MIDI 不随仓库分发（第三方版权 + 体积），缺失时算跳过而不是失败。
+   想跑完整回归：把 tianli.mid / TH06_01.赤より紅い夢 - (ZUN).mid 放回根目录即可。 */
+function skipCase(name, why){
+  skip++; console.log('  SKIP  ' + name + '  ' + (why || '样本不在仓库里'));
 }
 
 /* ---------- 1. 抽出解析器段 ---------- */
@@ -93,7 +98,7 @@ const CASES = [
 console.log('\n-- 真实文件 --');
 for(const c of CASES){
   const f = path.join(ROOT, c.file);
-  if(!fs.existsSync(f)){ ok(c.file, false, '文件不存在'); continue; }
+  if(!fs.existsSync(f)){ skipCase(c.file, '样本不在仓库里'); continue; }
   let song, evs = null;
   try {
     globalThis.__onAll = n => { evs = n; };
@@ -214,14 +219,19 @@ function boxWithCap(cap){
 }
 {
   const f = path.join(ROOT, 'tianli.mid');
-  const ab = readAb(f);                                  // 7680 个事件
-  const at = boxWithCap(7680);
-  let okAt = false;
-  try { at.parseMidi(readAb(f)); okAt = true; } catch(e){ okAt = false; }
-  ok('事件数 == 上限时仍可解析', okAt, 'cap=7680');
-  const under = boxWithCap(7679);
-  ok('事件数超上限时抛错', throws(() => under.parseMidi(ab), /事件数异常/), 'cap=7679');
+  if(!fs.existsSync(f)){
+    skipCase('事件数上限', '缺少 tianli.mid（7680 事件的样本）');
+  } else {
+    const ab = readAb(f);                                  // 7680 个事件
+    const at = boxWithCap(7680);
+    let okAt = false;
+    try { at.parseMidi(readAb(f)); okAt = true; } catch(e){ okAt = false; }
+    ok('事件数 == 上限时仍可解析', okAt, 'cap=7680');
+    const under = boxWithCap(7679);
+    ok('事件数超上限时抛错', throws(() => under.parseMidi(ab), /事件数异常/), 'cap=7679');
+  }
 }
 
-console.log('\nRESULT: ' + (fail === 0 ? 'PASS' : 'FAIL') + '  (' + pass + ' passed, ' + fail + ' failed)');
+console.log('\nRESULT: ' + (fail === 0 ? 'PASS' : 'FAIL') + '  (' + pass + ' passed, ' + fail + ' failed' +
+            (skip ? ', ' + skip + ' skipped' : '') + ')');
 process.exit(fail === 0 ? 0 : 1);

@@ -238,8 +238,10 @@ Tempo map（曲中变速）、CC7 音量 / CC10 声像 / CC11 表情 / CC64 延�
 - `test/unit_test.js` —— 纯函数单测（缓存键 / 量化 / 限幅 / 弯音 / 活动网格 / 淘汰 / 响度门限 / 内存释放）
 - `audiotest.html` —— 音频来源诊断页（同源文件 / blob URL / data URL 哪种能加载）
 - `test_wav_timer.html` —— 后台播放能力探针（WAV 时钟 vs Web Audio），排查"切后台断音"时用
-- `tianli.mid` / `TH06_01.赤より紅い夢 - (ZUN).mid` —— 真实大样本（3122 / 1909 音符），解析测试就靠它们
-- `silence.wav` / `test-tone.wav` —— 早期诊断素材，保留
+- ~~`tianli.mid` / `TH06_01.赤より紅い夢 - (ZUN).mid`~~ —— 两个真实大样本（3122 / 1909 音符）
+  **不再随仓库分发**（第三方版权 + 体积），解析测试里对应的两条断言会自动跳过。
+  想跑完整回归就把它们放回根目录，文件名保持不变即可
+- `test-tone.wav` —— `audiotest.html` 用的测试音频（确认"哪种音频源能加载"）
 
 ## 改代码前请先跑测试
 
