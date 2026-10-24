@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>音频加载自检 · MIDI8BIT</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#070907;color:#a8ccA8;
+  font:14px/1.6 ui-monospace,"SF Mono",Menlo,monospace;
+  background-image:radial-gradient(120% 80% at 50% -10%,#14260f 0%,#070907 62%)}
+h1{font-size:17px;color:#6fe36f;letter-spacing:2px;margin:0 0 4px}
+.sub{color:#5f8a58;font-size:12px;margin-bottom:14px}
+.row{border:1px solid #1d3318;border-radius:4px;background:rgba(12,20,10,.72);
+  padding:10px 12px;margin-bottom:10px}
+.row h2{font-size:14px;margin:0 0 4px;color:#ffb000;font-weight:400}
+.row .desc{font-size:12px;color:#5f8a58;margin-bottom:8px}
+.row .res{font-size:13px}
+.ok{color:#6fe36f}.bad{color:#ff7b7b}.wait{color:#ffb000}
+button{font:inherit;font-size:13px;background:#152110;color:#9fdc9f;border:1px solid #2b4a24;
+  border-radius:3px;padding:5px 12px;cursor:pointer;margin-right:6px}
+button:hover{background:#1b2a14}
+.summary{margin-top:14px;padding:12px;border:1px solid #2b4a24;border-radius:4px;
+  background:#0d150b;font-size:14px;line-height:1.8}
+</style>
+</head>
+<body>
+<h1>音频加载自检</h1>
+<div class="sub">MIDI8BIT 诊断页 · 用于确认哪种音频来源能在本浏览器里加载</div>
+
+<div class="row" id="r-file">
+  <h2>① 同目录普通文件 &nbsp;(test-tone.wav)</h2>
+  <div class="desc">最普通的方式，和页面同源</div>
+  <div class="res">等待…</div>
+  <button onclick="p('a1')">▶ 播放听一下</button>
+</div>
+
+<div class="row" id="r-blob">
+  <h2>② blob: URL &nbsp;(页面内动态生成)</h2>
+  <div class="desc">MIDI8BIT 渲染后用的就是这种方式</div>
+  <div class="res">等待…</div>
+  <button onclick="p('a2')">▶ 播放听一下</button>
+</div>
+
+<div class="row" id="r-data">
+  <h2>③ data: URL &nbsp;(内联 base64)</h2>
+  <div class="desc">加载失败时的兜底方式</div>
+  <div class="res">等待…</div>
+  <button onclick="p('a3')">▶ 播放听一下</button>
+</div>
+
+<div class="summary" id="summary">正在检测…</div>
+
+<audio id="a1" src="test-tone.wav" preload="auto"></audio>
+<audio id="a2" preload="auto"></audio>
+<audio id="a3" preload="auto"></audio>
+
+<script>
+const state = {};
+function log(id, text, cls){
+  const el = document.querySelector('#' + id + ' .res');
+  el.innerHTML = '<span class="' + (cls || '') + '">' + text + '</span>';
+}
+function watch(id, el, label){
+  return new Promise(res => {
+    const done = (how) => {
+      const ok = el.readyState >= 1 && isFinite(el.duration) && el.duration > 0;
+      const err = el.error;
+      let txt = how + ' · readyState=' + el.readyState + ' duration=' +
+                (isFinite(el.duration) ? el.duration.toFixed(2) + 's' : 'NaN') +
+                ' networkState=' + el.networkState + (err ? ' error=' + err.code : '');
+      log(id, txt, ok ? 'ok' : 'bad');
+      state[label] = ok;
+      res(ok);
+    };
+    el.addEventListener('loadedmetadata', () => done('✅ 已加载'), {once:true});
+    el.addEventListener('error', () => done('❌ 加载失败'), {once:true});
+    setTimeout(() => { if(el.readyState === 0) done('⏱ 4 秒内没反应'); }, 4000);
+  });
+}
+function p(id){ const el = document.getElementById(id); el.currentTime = 0; el.play().catch(e => log('r-' + (id==='a1'?'file':id==='a2'?'blob':'data'), '播放被拒绝: ' + e.message, 'bad')); }
+
+// ② 用 fetch 拿同目录文件 → Blob → blob URL（和主程序做的事完全一样）
+async function setupBlob(){
+  const el = document.getElementById('a2');
+  try {
+    const buf = await (await fetch('test-tone.wav')).arrayBuffer();
+    const blob = new Blob([buf], {type:'audio/wav'});
+    el.src = URL.createObjectURL(blob);
+    el.load();
+    return true;
+  } catch(e){ log('r-blob', '构造失败: ' + e.message, 'bad'); return false; }
+}
+// ③ 同一个 blob 转成 data URL
+async function setupData(){
+  const el = document.getElementById('a3');
+  try {
+    const buf = await (await fetch('test-tone.wav')).arrayBuffer();
+    const blob = new Blob([buf], {type:'audio/wav'});
+    const dataUrl = await new Promise((ok, no) => {
+      const fr = new FileReader();
+      fr.onload = () => ok(fr.result); fr.onerror = () => no(new Error('FileReader 失败'));
+      fr.readAsDataURL(blob);
+    });
+    el.src = dataUrl;
+    el.load();
+    return true;
+  } catch(e){ log('r-data', '构造失败: ' + e.message, 'bad'); return false; }
+}
+
+(async () => {
+  const a1 = document.getElementById('a1');
+  const p1 = watch('r-file', a1, 'file');
+  const okB = await setupBlob();
+  const p2 = okB ? watch('r-blob', document.getElementById('a2'), 'blob') : Promise.resolve(false);
+  const okD = await setupData();
+  const p3 = okD ? watch('r-data', document.getElementById('a3'), 'data') : Promise.resolve(false);
+  const [f, b, d] = await Promise.all([p1, p2, p3]);
+  const s = document.getElementById('summary');
+  let msg = '<b>结论</b><br>① 普通文件：' + (f ? '<span class="ok">可以加载</span>' : '<span class="bad">不可用</span>') +
+            '<br>② blob URL：' + (b ? '<span class="ok">可以加载</span>' : '<span class="bad">不可用</span>') +
+            '<br>③ data URL：' + (d ? '<span class="ok">可以加载</span>' : '<span class="bad">不可用</span>') + '<br><br>';
+  if(b) msg += 'MIDI8BIT 当前用的方式（blob）可用 ✅';
+  else if(d) msg += 'blob 不可用，需要把 MIDI8BIT 改成用 data URL ⚠️';
+  else msg += '三种都不可用 —— 那就不是加载方式的问题，请把这页的结果告诉 Minis 🚫';
+  s.innerHTML = msg;
+  window.__RESULT__ = {file:f, blob:b, data:d};
+})();
+</script>
+</body>
+</html>

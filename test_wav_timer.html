@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>WAV 计时器 · 后台存活测试</title>
+<style>
+ body{background:#0b0f0b;color:#7dff7d;font:13px/1.6 ui-monospace,Menlo,monospace;margin:0;padding:12px}
+ h1{font-size:16px;margin:0 0 4px;color:#cfe}
+ p.s{color:#6a8;font-size:12px;margin:0 0 10px}
+ button{font:inherit;padding:11px 14px;background:#1b3a1b;color:#9f9;border:1px solid #3a6;border-radius:6px;margin:0 6px 6px 0}
+ button:active{background:#2b5a2b}
+ #big{font-size:34px;color:#fff;margin:12px 0 2px;letter-spacing:1px}
+ .row{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0;font-size:12px}
+ .k{color:#6a8}.v{color:#dfd}
+ #verdict{margin:12px 0;padding:9px;border:1px solid #3a6;border-radius:6px;white-space:pre-wrap;color:#cfe}
+ table{width:100%;border-collapse:collapse;font-size:11px;margin-top:6px}
+ td,th{border-bottom:1px solid #1d3a1d;padding:3px 4px;text-align:left}
+ tr.hid td{color:#ffd166}
+</style>
+<h1>WAV 当计时器 —— 后台存活测试</h1>
+<p class="s">目的：验证「等长 WAV 的 currentTime 在 iOS 后台是否继续推进」。它若成立，就能替代被冻结的 setInterval。</p>
+
+<div>
+  <button id="go">① 生成 120 秒静音 WAV 并播放</button>
+  <button id="buzz">② Web Audio 蜂鸣</button>
+  <button id="mark">手动打点</button>
+  <button id="clr">清空</button>
+</div>
+
+<div id="big">—</div>
+<div class="row">
+  <span><span class="k">WAV 进度</span> <span class="v" id="ta">—</span></span>
+  <span><span class="k">墙钟</span> <span class="v" id="tw">—</span></span>
+  <span><span class="k">心跳</span> <span class="v" id="tb">—</span></span>
+  <span><span class="k">visibility</span> <span class="v" id="tv">—</span>
+  <span><span class="k">ctx.state</span> <span class="v" id="tc">—</span></span></span>
+</div>
+
+<div id="verdict">步骤：点① → 等 5 秒 → <b>切到别的 App 或锁屏 30 秒</b> → 回到这里。
+回来后本框会自动给出结论（比较「后台期间 WAV 走了几秒」和「墙钟走了几秒」）。</div>
+
+<table>
+  <thead><tr><th>事件</th><th>隐藏?</th><th>WAV 秒</th><th>墙钟秒</th><th>心跳次数</th></tr></thead>
+  <tbody id="log"></tbody>
+</table>
+
+<script>
+"use strict";
+var $ = function(id){ return document.getElementById(id); };
+var el = null, t0w = 0, beats = 0, timer = null, hiddenAt = null, lastHidden = false, tsec = 120, rate = 8000;
+
+/* 8-bit 单声道 8000Hz 静音 WAV：120s 只要 960KB，且 8bit 静音就是 128 一条常数 */
+function makeWav(sec, sr){
+  var n = sec * sr, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  function ws(o, s){ for(var i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); }
+  ws(0,"RIFF"); v.setUint32(4, 36+n, true); ws(8,"WAVE"); ws(12,"fmt ");
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr,true); v.setUint16(32,1,true); v.setUint16(34,8,true);
+  ws(36,"data"); v.setUint32(40,n,true);
+  new Uint8Array(buf, 44, n).fill(128);
+  return new Blob([buf], {type:"audio/wav"});
+}
+
+function row(tag){
+  var ta = el ? el.currentTime : 0, tw = t0w ? (Date.now() - t0w) / 1000 : 0;
+  var tr = document.createElement("tr");
+  if(document.hidden) tr.className = "hid";
+  tr.innerHTML = "<td>"+tag+"</td><td>"+(document.hidden?"是":"否")+"</td><td>"+
+                 ta.toFixed(2)+"</td><td>"+(t0w?tw.toFixed(2):"—")+"</td><td>"+beats+"</td>";
+  var tb = $("log"); tb.appendChild(tr);
+  while(tb.rows.length > 200) tb.deleteRow(0);
+}
+
+function tick(){
+  beats++;
+  var ta = el ? el.currentTime : 0, tw = (Date.now() - t0w) / 1000;
+  $("big").textContent = "WAV " + ta.toFixed(1) + "s";
+  $("ta").textContent = ta.toFixed(2) + "s";
+  $("tw").textContent = tw.toFixed(2) + "s";
+  $("tb").textContent = beats + " 次";
+  $("tc").textContent = AC ? (AC.state + " · statechange " + ctxEvents) : "—";
+  $("tv").textContent = document.hidden ? "hidden" : "visible";
+  if(document.hidden !== lastHidden){ lastHidden = document.hidden; row(document.hidden ? "→ 转后台" : "← 回前台"); }
+  else if(!document.hidden && beats % 20 === 0) row("心跳");
+}
+
+function verdict(){
+  if(!hiddenAt) return;
+  if(!el || !t0w){   // ★ 没按①就不算数 —— 上一版把这判成"❌ 冻结"，是假阴性
+    $("verdict").textContent = "⚠️ 这次没有在播放（没按①？或页面被系统重载了）—— 不算数，请重新按①再测。";
+    hiddenAt = null; return;
+  }
+  var ta = el ? el.currentTime : 0, tw = (Date.now() - t0w) / 1000;
+  var dA = ta - hiddenAt.a, dW = tw - hiddenAt.w, r = dW > 0.5 ? dA / dW : 0;
+  var head = "【后台 " + dW.toFixed(1) + " 秒的实测】\n"
+           + "WAV 进度推进 " + dA.toFixed(2) + "s\n"
+           + "墙钟推进     " + dW.toFixed(2) + "s\n"
+           + "心跳只跳了   " + (beats - hiddenAt.b) + " 次（可验证 setInterval 是否被冻）\n\n";
+  if(dW < 5) head += "⚠️ 后台时间太短（<5s），再试一次久一点。";
+  else if(r > 0.9) head += "✅ WAV 在后台正常推进（比值 " + r.toFixed(3) + "）—— 可以当计时器用。";
+  else if(r > 0.3) head += "◐ 部分推进（比值 " + r.toFixed(3) + "）—— 不可靠，别用。";
+  else head += "❌ WAV 也被冻结了（比值 " + r.toFixed(3) + "）—— 不能用。";
+  $("verdict").textContent = head;
+  hiddenAt = null;
+}
+
+document.addEventListener("visibilitychange", function(){
+  if(document.hidden){
+    hiddenAt = { a: el ? el.currentTime : 0, w: (Date.now() - t0w) / 1000, b: beats };
+    row("→ 转后台");
+  } else {
+    row("← 回前台");
+    verdict();
+  }
+});
+window.addEventListener("pageshow", function(){ row("pageshow"); });
+window.addEventListener("focus", function(){ row("focus"); });
+
+$("go").onclick = function(){
+  if(el){ try{ el.pause(); }catch(e){} }
+  if(timer){ clearInterval(timer); }
+  var blob = makeWav(tsec, rate);
+  el = new Audio(URL.createObjectURL(blob));
+  el.setAttribute("playsinline","");
+  el.addEventListener("ended", function(){ row("WAV 放完"); });
+  t0w = Date.now(); beats = 0; hiddenAt = null; lastHidden = document.hidden;
+  $("log").innerHTML = "";
+  $("verdict").textContent = "已开始。等 5 秒 → 切后台 30 秒 → 回来。";
+  row("起点");
+  var p = el.play();
+  if(p && p.catch) p.catch(function(e){ $("verdict").textContent = "play() 被拒：" + e.message; });
+  timer = setInterval(tick, 250);
+};
+var AC = null, ctxEvents = 0;
+$("buzz").onclick = function(){
+  AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+  AC.onstatechange = function(){ ctxEvents++; row("ctx→" + AC.state); };
+  if(!AC._o){
+    var o = AC.createOscillator(), g = AC.createGain();
+    o.frequency.value = 660; g.gain.value = 0.03;
+    o.connect(g); g.connect(AC.destination); o.start(); AC._o = o;
+  }
+  var p = AC.resume(); if(p && p.catch) p.catch(function(){});
+  row("蜂鸣起 state=" + AC.state);
+};
+$("mark").onclick = function(){ row("手动打点"); };
+$("clr").onclick = function(){ $("log").innerHTML = ""; $("verdict").textContent = "已清空。"; };
+row("页面加载");
+</script>
+</html>

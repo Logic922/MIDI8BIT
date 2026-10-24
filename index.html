@@ -1,0 +1,3104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>MIDI8BIT · 8-bit MIDI Player</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{
+  background:#070907;color:#a8ccA8;font:13px/1.45 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  display:flex;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none;
+  background-image:radial-gradient(120% 80% at 50% -10%,#14260f 0%,#070907 62%);
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:99;opacity:.35;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.35) 2px 3px);
+  mix-blend-mode:multiply;
+}
+#top{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;
+  border-bottom:1px solid #1d3318;background:linear-gradient(#101a0d,#0a110a);
+}
+.brand{font-weight:700;letter-spacing:2px;color:#7fe36f;font-size:15px;text-shadow:0 0 8px rgba(110,230,110,.5)}
+.brand span{color:#ffb000;text-shadow:0 0 8px rgba(255,176,0,.6)}
+.transport{display:flex;gap:6px}
+.btn{
+  font:inherit;color:#9fdc9f;background:#0e160c;border:1px solid #2b4a24;border-radius:3px;
+  padding:5px 9px;cursor:pointer;line-height:1;transition:.12s;
+}
+.btn:hover{background:#162313;border-color:#4a7c3c;color:#c8ffc8}
+.btn:active{transform:translateY(1px)}
+.btn.primary{color:#0a1108;background:#6fe36f;border-color:#8dff8d;font-weight:700;min-width:38px}
+.btn.primary:hover{background:#8dff8d}
+.btn.tiny{padding:3px 7px;font-size:11px}
+.timebox{color:#ffb000;letter-spacing:1px;font-variant-numeric:tabular-nums}
+.timebox span#tCur{color:#e9ffd0}
+.spacer{flex:1}
+.chk{display:flex;align-items:center;gap:4px;color:#7fa87a;font-size:12px;cursor:pointer}
+.chk input{accent-color:#6fe36f}
+.chk select{
+  font:inherit;font-size:11px;background:#0a110a;color:#9fdc9f;border:1px solid #2b4a24;
+  border-radius:2px;padding:1px 3px;
+}
+.vol{display:flex;align-items:center;gap:6px;color:#7fa87a;font-size:12px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:18px;background:transparent;width:110px}
+input[type=range]::-webkit-slider-runnable-track{height:4px;background:#233a1c;border:1px solid #33522a;border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:16px;margin-top:-7px;background:#6fe36f;border:1px solid #9dff9d;border-radius:2px}
+#seekWrap{
+  position:relative;height:14px;margin:0 12px 8px;cursor:pointer;
+  background:#0c130a;border:1px solid #22371b;border-radius:3px;overflow:hidden;
+}
+#seekFill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,#274d1e,#6fe36f);opacity:.75}
+#seekHead{position:absolute;top:0;bottom:0;width:2px;background:#e9ffd0;box-shadow:0 0 8px #9dff9d;left:0;pointer-events:none}
+#renderHud{margin-left:auto;color:#7dff7d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+main{flex:1;display:flex;min-height:0;gap:10px;padding:0 12px 10px}
+.pane{background:rgba(12,20,10,.72);border:1px solid #1d3318;border-radius:4px;display:flex;flex-direction:column;min-height:0}
+#left{width:31%;min-width:190px}
+#right{flex:1;min-width:0}
+.pane-title{
+  display:flex;align-items:center;gap:8px;padding:5px 9px;font-size:11px;letter-spacing:1px;
+  color:#5f8a58;border-bottom:1px solid #182a14;text-transform:uppercase;flex:none;
+}
+.pane-title .grow{flex:1}
+#playlist{flex:1;overflow-y:auto;min-height:60px;padding:5px}
+#playlist::-webkit-scrollbar{width:8px}
+#playlist::-webkit-scrollbar-thumb{background:#2b4a24;border-radius:4px}
+#playlist::-webkit-scrollbar-track{background:#0b1209}
+.pl-item{
+  display:flex;align-items:center;gap:7px;padding:6px 7px;border:1px solid transparent;border-radius:3px;
+  cursor:pointer;color:#8fbb8a;
+}
+.pl-item:hover{background:#131f10;border-color:#274018}
+.pl-item.on{background:#1b3316;border-color:#5aa348;color:#d6ffd0}
+.pl-item .ix{color:#4f7748;width:18px;text-align:right;font-size:11px}
+.pl-item .rdy{width:6px;height:6px;border-radius:50%;background:#22371b;flex:none}
+.pl-item.ready .rdy{background:#6fe36f;box-shadow:0 0 6px #6fe36f}
+.pl-item .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-item .du{font-size:11px;color:#6f9a68;font-variant-numeric:tabular-nums}
+.pl-item .del{color:#7a4a4a;padding:0 3px;font-size:14px;line-height:1}
+.pl-item .del:hover{color:#ff7b7b}
+.empty{color:#4a6b45;padding:14px 10px;text-align:center;line-height:1.8}
+#scope{width:100%;height:150px;display:block;flex:none;background:#040704}
+#roll{width:100%;height:96px;display:block;flex:none;background:#040704}
+#channels{flex:1;overflow-y:auto;padding:6px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;min-height:56px}
+.ch-chip{
+  border:1px solid #274018;border-radius:3px;background:#0d150b;padding:4px 6px;display:flex;
+  align-items:center;gap:5px;font-size:11px;color:#7fae79;
+}
+.ch-chip.mute{opacity:.4}
+.ch-chip.act{border-color:#6fe36f;box-shadow:0 0 8px rgba(110,230,110,.35);color:#d6ffd0}
+.ch-chip b{color:#ffb000;font-weight:400}
+.ch-chip select{
+  font:inherit;font-size:11px;background:#0a110a;color:#9fdc9f;border:1px solid #2b4a24;
+  border-radius:2px;padding:1px 2px;max-width:118px;
+}
+.ch-chip button{
+  font:inherit;font-size:10px;background:#152110;color:#8fbb8a;border:1px solid #2b4a24;
+  border-radius:2px;padding:1px 5px;cursor:pointer;
+}
+.ch-chip button.on{background:#5a2b2b;border-color:#8a3d3d;color:#ffc9c9}
+#drop{
+  position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
+  background:rgba(4,10,4,.85);color:#9dff9d;font-size:22px;letter-spacing:3px;
+  border:3px dashed #6fe36f;
+}
+#drop.show{display:flex}
+.foot{padding:0 12px 8px;color:#3f5c3b;font-size:11px;display:flex;gap:14px;flex-wrap:wrap}
+@media (max-width:820px){
+  main{flex-direction:column}
+  #left{width:100%;min-width:0;max-height:26vh}
+  #scope{height:110px}#roll{height:70px}
+}
+</style>
+</head>
+<body>
+<div id="top">
+  <div class="brand">MIDI<span>8</span>BIT</div>
+  <div class="transport">
+    <button class="btn" id="btnPrev" title="上一首">&#9664;&#9664;</button>
+    <button class="btn primary" id="btnPlay" title="播放 / 暂停">&#9654;</button>
+    <button class="btn" id="btnStop" title="停止">&#9632;</button>
+    <button class="btn" id="btnNext" title="下一首">&#9654;&#9654;</button>
+  </div>
+  <div class="timebox"><span id="tCur">00:00</span> / <span id="tTot">00:00</span></div>
+  <div class="spacer"></div>
+  <label class="chk"><input type="checkbox" id="chkLoop">循环</label>
+  <label class="chk">位深<select id="selCrush">
+    <option value="0">关</option><option value="8">8bit</option>
+    <option value="6" selected>6bit</option><option value="4">4bit</option>
+  </select></label>
+  <div class="vol">音量<input type="range" id="volume" min="0" max="100" value="70"></div>
+</div>
+<div id="seekWrap"><div id="seekFill"></div><div id="seekHead"></div></div>
+<main>
+  <div class="pane" id="left">
+    <div class="pane-title">播放列表<span class="grow"></span><span id="plCount">0</span>
+      <label class="btn tiny" for="fileInput">＋添加</label>
+      <button class="btn tiny" id="btnClearCache" title="清空磁盘上的全部渲染缓存">清缓存</button>
+    </div>
+    <div id="playlist"><div class="empty">拖入 .mid / .midi 文件<br>或点击「＋添加」</div></div>
+  </div>
+  <div class="pane" id="right">
+    <div class="pane-title">示波器 / OSCILLOSCOPE<span class="grow"></span><span id="info">NOTHING LOADED</span></div>
+    <canvas id="scope"></canvas>
+    <div class="pane-title">音符卷帘 / NOTE ROLL</div>
+    <canvas id="roll"></canvas>
+    <div class="pane-title">声道 / CHANNELS</div>
+    <div id="channels"></div>
+  </div>
+</main>
+<div class="foot">
+  <span>空格=播放/暂停</span><span>← → = 快退/快进 5s</span><span>拖拽 MIDI 到窗口任意位置</span>
+  <span id="msStatus">◌ 系统播放器：未连接</span>
+  <span id="renderHud" style="display:none"><span id="renderHudTxt"></span></span>
+</div>
+<audio id="player"  playsinline preload="auto"></audio>
+<audio id="player-b" playsinline preload="auto"></audio>
+<input type="file" id="fileInput" accept=".mid,.midi,.kar,audio/midi,audio/x-midi" multiple hidden>
+<div id="drop">松开以加载 MIDI</div>
+<script>
+
+
+"use strict";
+
+const RENDER_RATE = 44100;
+const PRERENDER_AHEAD = 4;
+
+const TONE_LP   = 10000;
+
+const HP_HZ        = 35;
+const SHELF_LOW_HZ = 200,  SHELF_LOW_DB = -1.5;
+const SHELF_HI_HZ  = 4000, SHELF_HI_DB  =  1.5;
+
+const TARGET_LUFS = -16;
+const LUFS_MIN = -40, LUFS_MAX = 0;
+
+const LIM_KNEE  = 0.62;
+const LIM_CEIL  = 0.92;
+const LIM_RATIO = 5;
+
+const MIX_VER = 10;
+
+const BITS_LP = {0: 0, 8: 0, 6: 7000, 4: 5500};
+const HARD_LEVEL = 0.05;
+
+const WAVE_GAIN = {pulse12:1.45, pulse25:1.00, pulse50:0.62, square:0.62,
+                   triangle:0.95, saw:1.05, sine:1.00, noise:1.00};
+const SUSTAIN = {pulse12:0.52, pulse25:0.62, pulse50:0.72, square:0.72, triangle:0.86, saw:0.68, sine:0.9, noise:0.4};
+const BEND_SEMI  = 2;
+
+const CACHE_BYTES = 1024 * 1024 * 1024;
+let cachePressure = false;
+const CACHE_LOW   = CACHE_BYTES - 64 * 1024 * 1024;
+
+const SCOPE_SPAN = 900;
+
+const CH_COLORS = ["#6fe36f","#ffb000","#63c8ff","#ff7bd0","#ffe873","#8affd8","#b78dff","#ff9d6b",
+                   "#7cf5c0","#f57cff","#9dff6b","#6bb0ff","#ff6b8a","#ffe0a3","#a3ffe0","#d4d4d4"];
+
+const $ =  (id => document.getElementById(id));
+const fmtTime = t => {
+  t = Math.max(0, t||0);
+  const m = Math.floor(t/60), s = Math.floor(t%60);
+  return String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function shortName(n){ n = String(n || "?"); return n.length > 10 ? n.slice(0, 10) + "…" : n; }
+
+const Bus = Object.create(null);
+function on(evt, fn){ (Bus[evt] || (Bus[evt] = [])).push(fn); }
+function emit(evt, a, b){
+  const list = Bus[evt];
+  if(!list) return;
+  for(let i = 0; i < list.length; i++){
+    try { list[i](a, b); } catch(e){ console.warn("[事件] " + evt, e); }
+  }
+}
+
+function renderBudgetMs(song){
+  const dur = (song && song.duration) ? song.duration : 120;
+  return Math.max(20000, Math.round(dur * 1000 * 1.5) + 20000);
+}
+
+function schedulePrerender(){ setTimeout(() => emit("prerender"), 200); }
+
+const MAX_SONG_SEC = 1800;
+
+const MAX_EVENTS = 2000000;
+
+const txtDec = new TextDecoder("utf-8", {fatal:false});
+const GM_NAMES = ("Acoustic Grand Piano|Bright Acoustic Piano|Electric Grand Piano|Honky-tonk Piano|Electric Piano 1|Electric Piano 2|Harpsichord|Clavinet|"+
+"Celesta|Glockenspiel|Music Box|Vibraphone|Marimba|Xylophone|Tubular Bells|Dulcimer|"+
+"Drawbar Organ|Percussive Organ|Rock Organ|Church Organ|Reed Organ|Accordion|Harmonica|Tango Accordion|"+
+"Acoustic Guitar (nylon)|Acoustic Guitar (steel)|Electric Guitar (jazz)|Electric Guitar (clean)|Electric Guitar (muted)|Overdriven Guitar|Distortion Guitar|Guitar Harmonics|"+
+"Acoustic Bass|Electric Bass (finger)|Electric Bass (pick)|Fretless Bass|Slap Bass 1|Slap Bass 2|Synth Bass 1|Synth Bass 2|"+
+"Violin|Viola|Cello|Contrabass|Tremolo Strings|Pizzicato Strings|Orchestral Harp|Timpani|"+
+"String Ensemble 1|String Ensemble 2|Synth Strings 1|Synth Strings 2|Choir Aahs|Voice Oohs|Synth Voice|Orchestra Hit|"+
+"Trumpet|Trombone|Tuba|Muted Trumpet|French Horn|Brass Section|Synth Brass 1|Synth Brass 2|"+
+"Soprano Sax|Alto Sax|Tenor Sax|Baritone Sax|Oboe|English Horn|Bassoon|Clarinet|"+
+"Piccolo|Flute|Recorder|Pan Flute|Blown Bottle|Shakuhachi|Whistle|Ocarina|"+
+"Lead 1 (square)|Lead 2 (sawtooth)|Lead 3 (calliope)|Lead 4 (chiff)|Lead 5 (charang)|Lead 6 (voice)|Lead 7 (fifths)|Lead 8 (bass+lead)|"+
+"Pad 1 (new age)|Pad 2 (warm)|Pad 3 (polysynth)|Pad 4 (choir)|Pad 5 (bowed)|Pad 6 (metallic)|Pad 7 (halo)|Pad 8 (sweep)|"+
+"FX 1 (rain)|FX 2 (soundtrack)|FX 3 (crystal)|FX 4 (atmosphere)|FX 5 (brightness)|FX 6 (goblins)|FX 7 (echoes)|FX 8 (sci-fi)|"+
+"Sitar|Banjo|Shamisen|Koto|Kalimba|Bag pipe|Fiddle|Shanai|"+
+"Tinkle Bell|Agogo|Steel Drums|Woodblock|Taiko Drum|Melodic Tom|Synth Drum|Reverse Cymbal|"+
+"Guitar Fret Noise|Breath Noise|Seashore|Bird Tweet|Telephone Ring|Helicopter|Applause|Gunshot").split("|");
+
+function parseMidi(buffer){
+  const d = new DataView(buffer);
+  let p = 0;
+  const u8  = () => {
+
+    if(p >= d.byteLength)
+      throw new Error("文件数据不完整（读第 " + p + " 字节时已到文件末尾）"
+                      + " —— 不是标准 MIDI，或文件被截断");
+    return d.getUint8(p++);
+  };
+  const u16 = () => { const v = d.getUint16(p); p += 2; return v; };
+  const u32 = () => { const v = d.getUint32(p); p += 4; return v; };
+  const s4  = () => { let s = ""; for(let i=0;i<4;i++) s += String.fromCharCode(u8()); return s; };
+  const vl  = () => { let v=0,c; do { c=u8();
+                       v = v * 128 + (c & 0x7f);
+                       if(v > 0x0FFFFFFF) v = 0x0FFFFFFF;
+                     } while(c&0x80); return v; };
+  const txt = (off,len) => { try { return txtDec.decode(new Uint8Array(buffer,off,len)).replace(/\0+$/,"").trim(); } catch(e){ return ""; } };
+
+  if(d.byteLength < 14){
+    throw new Error("文件太小（" + d.byteLength + " 字节），不是有效的 MIDI");
+  }
+  if(s4() !== "MThd") throw new Error("不是标准 MIDI 文件（缺少 MThd）");
+  const hlen = u32();
+  const format = u16();
+  const ntrks = u16();
+  let division = u16();
+  if(hlen > 6) p += hlen - 6;
+
+  let ppq = division, smpte = false;
+  if(division & 0x8000){
+    smpte = true;
+    const fps = 256 - ((division >> 8) & 0xff);
+    const sub = division & 0xff;
+    ppq = (fps || 25) * (sub || 40);
+  }
+  if(!ppq) ppq = 480;
+
+  const tracks = [];
+  let evCount = 0;
+
+  while(p + 8 <= d.byteLength){
+    const id = s4();
+    const len = u32();
+    const end = Math.min(p + len, d.byteLength);
+    if(id !== "MTrk"){ p = end; continue; }
+    if(len > d.byteLength - p){
+      throw new Error("文件已截断（轨道声明 " + len + " 字节，实际只剩 "
+                      + (d.byteLength - p) + " 字节）");
+    }
+
+    const evs = [];
+    const pushEv = e => {
+      if(++evCount > MAX_EVENTS){
+        throw new Error("事件数异常（超过上限 " + MAX_EVENTS + " 条）"
+                        + " —— 文件可能已损坏或非标准 MIDI");
+      }
+      evs.push(e);
+    };
+    let tick = 0, rs = 0, name = "";
+    while(p < end){
+      tick += vl();
+      if(p >= end) break;
+      let status = d.getUint8(p);
+
+      if(status & 0x80){ p++; if(status < 0xF0) rs = status; } else { status = rs; }
+      if(!status){
+
+        throw new Error("轨道数据异常（第 " + (tracks.length + 1) + " 轨：事件以数据字节开头，"
+                        + "但前一条消息不支持 running status）—— 文件可能已损坏");
+      }
+      if(status === 0xFF){
+        const type = u8();
+        const l = vl();
+        if(p + l > end) break;
+        if(type === 0x51 && l === 3){
+          pushEv({tick, t:"tempo", v:(d.getUint8(p)<<16)|(d.getUint8(p+1)<<8)|d.getUint8(p+2)});
+        } else if(type === 0x58 && l >= 2){
+          pushEv({tick, t:"timesig", n:d.getUint8(p), d2:Math.pow(2,d.getUint8(p+1))});
+        } else if((type === 0x03 || type === 0x04) && l){
+          const s = txt(p, l); if(type === 0x03 && !name) name = s;
+          pushEv({tick, t:"text", s});
+        } else if(type === 0x2F){
+          pushEv({tick, t:"end"});
+          p += l;
+          break;
+
+        }
+        p += l;
+      } else if(status === 0xF0 || status === 0xF7){
+        const l = vl();
+        if(p + l > end) break;
+        p += l;
+      } else if(status >= 0xF0){
+
+        const skip = status === 0xF2 ? 2 : (status === 0xF1 || status === 0xF3) ? 1 : 0;
+        if(p + skip > end) break;
+        p += skip;
+      } else {
+        const cmd = status >> 4, ch = status & 0x0f;
+        const need = (cmd === 0xC || cmd === 0xD) ? 1 : 2;
+
+        if(p + need > end){
+          throw new Error("轨道数据不完整（第 " + (tracks.length + 1) + " 轨在事件中途结束）"
+                          + " —— 文件可能已损坏或不是标准 MIDI");
+        }
+        const a = u8();
+        const b = (cmd === 0xC || cmd === 0xD) ? 0 : u8();
+        pushEv({tick, t:"midi", cmd, ch, a, b});
+      }
+    }
+    p = end;
+    tracks.push(evs);
+  }
+  if(!tracks.length) throw new Error("文件中没有找到 MTrk 轨道");
+
+  const all = [];
+  for(const evs of tracks) for(const e of evs) all.push(e);
+  const evPrio = e => (e.t === "midi" &&
+      (e.cmd === 0x8 || (e.cmd === 0x9 && e.b === 0))) ? 0 : 1;
+  all.sort((x,y) => (x.tick - y.tick) || (evPrio(x) - evPrio(y)));
+
+  const notes = [];
+  const tempos = [{tick:0, time:0, us:500000}];
+  const usedCh = new Set();
+  const chanProg = new Array(16).fill(0);
+  const chanVol  = new Array(16).fill(100);
+  const chanPan  = new Array(16).fill(64);
+  const chanExp  = new Array(16).fill(127);
+  const chanBend = new Array(16).fill(0);
+  const chanBendTL = new Array(16).fill(null).map(() => []);
+  const sustain  = new Array(16).fill(false);
+  const held     = new Array(16).fill(null).map(()=>[]);
+  const pending  = new Map();
+  let timeSig = {n:4, d2:4};
+
+  let curTick = 0, curTime = 0, curTempo = 500000;
+  const secPerTick = () => smpte ? 1/ppq : curTempo/(ppq*1e6);
+
+  const closeNote = (key, at) => {
+    const list = pending.get(key);
+    if(!list || !list.length) return;
+    const n = list.shift();
+    if(!list.length) pending.delete(key);
+    notes.push({start:n.start, dur:Math.max(0.03, at - n.start), note:n.note, vel:n.vel,
+                ch:n.ch, prog:n.prog, vol:n.vol, pan:n.pan, bend:n.bend || 0,
+                exp:n.exp == null ? 127 : n.exp});
+  };
+
+  for(let i=0;i<all.length;i++){
+    const e = all[i];
+    curTime += (e.tick - curTick) * secPerTick();
+    curTick = e.tick;
+    if(e.t === "tempo"){ curTempo = e.v; tempos.push({tick:e.tick, time:curTime, us:e.v}); continue; }
+    if(e.t === "timesig"){ timeSig = {n:e.n, d2:e.d2}; continue; }
+    if(e.t !== "midi") continue;
+
+    const ch = e.ch; usedCh.add(ch);
+    if(e.cmd === 0x9 && e.b > 0){
+      const pkey = ch*128 + e.a;
+      let plist = pending.get(pkey);
+      if(!plist){ plist = []; pending.set(pkey, plist); }
+      plist.push({start:curTime, vel:e.b, note:e.a, ch,
+        prog:chanProg[ch], vol:chanVol[ch], pan:chanPan[ch], bend:chanBend[ch],
+        exp:chanExp[ch]});
+    } else if(e.cmd === 0x8 || (e.cmd === 0x9 && e.b === 0)){
+      const key = ch*128 + e.a;
+      if(sustain[ch]) held[ch].push(key); else closeNote(key, curTime);
+    } else if(e.cmd === 0xB){
+      switch(e.a){
+        case 7:  chanVol[ch] = e.b; break;
+        case 10: chanPan[ch] = e.b; break;
+        case 11: chanExp[ch] = e.b; break;
+        case 64:
+          if(e.b < 64){
+            const list = held[ch]; held[ch] = [];
+            for(const k of list) closeNote(k, curTime);
+          }
+          sustain[ch] = e.b >= 64; break;
+        case 120: case 123:
+          held[ch] = [];
+          for(const k of [...pending.keys()]) if((k>>7) === ch) closeNote(k, curTime);
+          break;
+      }
+    } else if(e.cmd === 0xE){
+      chanBend[ch] = (((e.b << 7) | e.a) - 8192) / 8192;
+      chanBendTL[ch].push({t: curTime, v: chanBend[ch]});
+    } else if(e.cmd === 0xC){
+      chanProg[ch] = e.a;
+    }
+  }
+  const endTime = curTime;
+  for(const k of [...pending.keys()]) closeNote(k, endTime);
+
+  notes.sort((a,b) => a.start - b.start);
+
+  let duration = 0;
+  for(const n of notes) duration = Math.max(duration, n.start + n.dur);
+  duration = Math.max(duration, endTime, 0.1);
+
+  const channels = [];
+  for(const ch of [...usedCh].sort((a,b)=>a-b)){
+    const own = notes.filter(n => n.ch === ch);
+    if(!own.length) continue;
+    const progs = [...new Set(own.map(n => n.prog))];
+
+    let volMax = 100;
+    for(const n of own) if(n.vol > volMax) volMax = n.vol;
+    channels.push({ch, count:own.length, prog:progs[0]||0, progs,
+      name: ch===9 ? "Drums (GM)" : (GM_NAMES[progs[0]||0] || "Program "+(progs[0]||0)),
+      vol: volMax});
+  }
+  channels.sort((a,b) => a.ch - b.ch);
+
+  const noteCount = notes.length;
+  let lo = 127, hi = 0;
+  for(const n of notes){ if(n.note < lo) lo = n.note; if(n.note > hi) hi = n.note; }
+  if(!noteCount){
+
+    throw new Error("没有解析到任何音符 —— 文件可能不是标准 MIDI 或已损坏");
+  }
+
+  if(duration > MAX_SONG_SEC){
+    throw new Error("时长异常（约 " + Math.round(duration / 60) + " 分钟，上限 "
+                    + (MAX_SONG_SEC / 60) + " 分钟）—— 文件可能已损坏或非标准 MIDI");
+  }
+
+  return {format, ntrks, ppq, smpte, division, notes, tempos, channels, duration, bends: chanBendTL,
+          timeSig, noteCount, lo, hi,
+          tempoAt(t){
+            let us = tempos.length ? tempos[0].us : 500000;
+            for(const x of tempos){ if(x.time <= t) us = x.us; else break; }
+            return us;
+          }};
+}
+
+function biquadHS(rate, f0, Q, gainDb){
+  const A = Math.pow(10, gainDb/40), w0 = 2*Math.PI*f0/rate, cs = Math.cos(w0), sn = Math.sin(w0);
+  const alpha = sn/(2*Q), sq = 2*Math.sqrt(A)*alpha;
+  const b0 =    A*((A+1)+(A-1)*cs+sq), b1 = -2*A*((A-1)+(A+1)*cs), b2 =    A*((A+1)+(A-1)*cs-sq);
+  const a0 =       (A+1)-(A-1)*cs+sq,  a1 =    2*((A-1)-(A+1)*cs),  a2 =       (A+1)-(A-1)*cs-sq;
+  return {b0:b0/a0, b1:b1/a0, b2:b2/a0, a1:a1/a0, a2:a2/a0};
+}
+function biquadHP(rate, f0, Q){
+  const w0 = 2*Math.PI*f0/rate, cs = Math.cos(w0), sn = Math.sin(w0), alpha = sn/(2*Q);
+  const b0 = (1+cs)/2, b1 = -(1+cs), b2 = (1+cs)/2, a0 = 1+alpha, a1 = -2*cs, a2 = 1-alpha;
+  return {b0:b0/a0, b1:b1/a0, b2:b2/a0, a1:a1/a0, a2:a2/a0};
+}
+
+async function measureLoudness(m){
+  const bpf = m.nch * 2, step = Math.floor(m.rate * 20);
+  const hs = biquadHS(m.rate, 1681.97, 0.7071, 3.999);
+  const hp = biquadHP(m.rate, 38.13, 0.5);
+  const z1 = new Float64Array(m.nch), z2 = new Float64Array(m.nch);
+  const z3 = new Float64Array(m.nch), z4 = new Float64Array(m.nch);
+
+  const blkFrames = Math.max(1, Math.round(m.rate * 0.4));
+  const hopFrames = Math.max(1, Math.round(m.rate * 0.1));
+  const hopPerWin = Math.max(1, Math.round(blkFrames / hopFrames));
+  const hopSq = new Float64Array(m.nch);
+  const hops = [];
+  const blocks = [];
+  let hopN = 0;
+  const closeHop = () => {
+    const n = hopN;
+    let z = 0;
+    for(let ch=0; ch<m.nch; ch++) z += hopSq[ch] / n;
+    hopSq.fill(0); hopN = 0;
+    if(n >= Math.floor(hopFrames * 0.5)){
+      hops.push(z);
+      if(hops.length >= hopPerWin){
+        let s = 0;
+        for(let k = hops.length - hopPerWin; k < hops.length; k++) s += hops[k];
+        blocks.push(s / hopPerWin);
+      }
+    }
+  };
+  for(let f=0; f<m.frames; f+=step){
+    const n = Math.min(step, m.frames - f);
+    const ab = await m.pcm.slice(f*bpf, (f+n)*bpf).arrayBuffer();
+    const src = new Int16Array(ab);
+    for(let i=0;i<src.length;i++){
+      const ch = i % m.nch;
+      let x = src[i] / 32768;
+      let y = hs.b0*x + z1[ch]; z1[ch] = hs.b1*x - hs.a1*y + z2[ch]; z2[ch] = hs.b2*x - hs.a2*y; x = y;
+      y = hp.b0*x + z3[ch]; z3[ch] = hp.b1*x - hp.a1*y + z4[ch]; z4[ch] = hp.b2*x - hp.a2*y;
+      hopSq[ch] += y*y;
+      if(ch === m.nch - 1 && ++hopN >= hopFrames) closeHop();
+    }
+  }
+  if(hopN) closeHop();
+
+  const lufs = gatedLoudness(blocks);
+
+  return lufs == null ? TARGET_LUFS : lufs;
+}
+
+const LUFS_ABS_GATE = -70, LUFS_REL_GATE = -10;
+function lufsOfEnergy(z){ return -0.691 + 10 * Math.log10(Math.max(1e-12, z)); }
+function gatedLoudness(blocks){
+  if(!blocks || !blocks.length) return null;
+  const abs = blocks.filter(z => lufsOfEnergy(z) > LUFS_ABS_GATE);
+  if(!abs.length) return null;
+  let gz = 0;
+  for(const z of abs) gz += z;
+  gz /= abs.length;
+  const relThr = lufsOfEnergy(gz) + LUFS_REL_GATE;
+  let sum = 0, n = 0;
+  for(const z of abs) if(lufsOfEnergy(z) > relThr){ sum += z; n++; }
+  sum = n ? sum / n : gz;
+  return lufsOfEnergy(sum);
+}
+
+async function loudnessGainFor(m){
+  if(m.gainDb != null) return m.gainDb;
+  let lufs = TARGET_LUFS;
+  try { lufs = await measureLoudness(m); } catch(e){
+
+    console.warn('[响度] 测量失败，本曲不做响度归一', e);
+  }
+
+  lufs = Math.max(LUFS_MIN, Math.min(LUFS_MAX, lufs));
+  m.loudness = lufs;
+  const db = Math.max(-24, Math.min(24, TARGET_LUFS - lufs));
+  m.gainDb = db;
+
+  if(lufs !== TARGET_LUFS && window.console && console.warn)
+    console.warn('[响度] 实测', lufs.toFixed(1), 'LUFS → 修正', db.toFixed(1), 'dB');
+  return db;
+}
+
+function limitAt(x){
+  const a = x < 0 ? -x : x;
+  if(a <= LIM_KNEE) return x;
+  const db = 20 * Math.log10(a / LIM_KNEE);
+  const out = LIM_KNEE * Math.pow(10, db * (1 / LIM_RATIO) / 20);
+  const o = out > LIM_CEIL ? LIM_CEIL : out;
+  return x < 0 ? -o : o;
+}
+
+const LIM_MAKEUP = LIM_CEIL / limitAt(LIM_CEIL);
+
+function biquadLP(fs, f0, Q){
+  const w = 2*Math.PI*f0/fs, cs = Math.cos(w), sn = Math.sin(w);
+  const al = sn/(2*(Q||0.7071));
+  const b0 = (1-cs)/2, b1 = 1-cs, b2 = (1-cs)/2;
+  const a0 = 1+al, a1 = -2*cs, a2 = 1-al;
+  return {b0:b0/a0, b1:b1/a0, b2:b2/a0, a1:a1/a0, a2:a2/a0};
+}
+const WAVE_SHORT = {pulse12:"12.5%", pulse25:"25%", pulse50:"50%", square:"方波",
+                    triangle:"三角", saw:"锯齿", sine:"正弦", noise:"噪声"};
+const WAVE_LABELS = [
+  ["auto","自动"],
+  ["pulse12","脉冲 12.5%"],
+  ["pulse25","脉冲 25%"],
+  ["pulse50","方波 50%"],
+  ["triangle","三角波"],
+  ["saw","锯齿波"],
+  ["square","裸方波"],
+  ["sine","正弦"],
+  ["noise","噪声"]
+];
+
+const GM_WAVE = [
+
+  "pulse25","pulse25","pulse25","pulse25","triangle","triangle","pulse25","pulse25",
+
+  "triangle","triangle","triangle","sine","triangle","triangle","sine","pulse25",
+
+  "pulse50","pulse50","pulse50","pulse50","pulse25","pulse25","pulse25","pulse25",
+
+  "pulse25","pulse25","pulse25","pulse25","pulse25","saw","saw","sine",
+
+  "triangle","triangle","triangle","sine","pulse50","pulse50","triangle","saw",
+
+  "pulse50","pulse50","pulse50","pulse50","pulse25","pulse25","triangle","noise",
+
+  "pulse50","pulse50","pulse50","pulse50","sine","sine","sine","noise",
+
+  "pulse25","pulse25","pulse25","pulse25","pulse25","pulse25","saw","saw",
+
+  "pulse25","pulse25","pulse25","pulse25","triangle","pulse25","pulse25","sine",
+
+  "triangle","triangle","triangle","triangle","sine","triangle","sine","sine",
+
+  "pulse50","saw","pulse25","pulse25","saw","sine","pulse25","pulse25",
+
+  "pulse50","pulse50","pulse50","sine","pulse50","pulse25","sine","pulse50",
+
+  "noise","noise","sine","noise","pulse25","noise","noise","noise",
+
+  "pulse25","pulse25","pulse25","pulse25","triangle","pulse25","pulse50","pulse25",
+
+  "sine","pulse50","pulse25","pulse25","noise","triangle","noise","noise",
+
+  "noise","noise","noise","sine","pulse12","noise","noise","noise"
+];
+
+const SHAPES = {
+  perc:  {strike:0.42, sus:0.20, hit:0.10, rel:0.11, boost:1.95, ring:1.00},
+  pluck: {strike:0.50, sus:0.25, hit:0.08, rel:0.09, boost:1.85, ring:0.80},
+  bell:  {strike:0.46, sus:0.16, hit:0.20, rel:0.34, boost:1.55, ring:1.30},
+  wind:  {sus:0.72, dec:0.055, rel:0.09, boost:1.10},
+  lead:  {sus:0.78, dec:0.045, rel:0.07, boost:0.92},
+  sus:   {sus:0.88, dec:0.035, rel:0.10, boost:0.68}
+};
+
+function tailLevel(sh, note){
+  const lo = Math.max(0, Math.min(1, (72 - note) / 36));
+  return Math.min(0.92, sh.sus * (1 + 0.12 * lo * (sh.ring || 0)));
+}
+const GM_SHAPE = [
+  "perc","perc","perc","perc","perc","perc","pluck","pluck",
+  "bell","bell","bell","bell","bell","bell","bell","pluck",
+  "sus","sus","sus","sus","sus","wind","wind","wind",
+  "pluck","pluck","pluck","pluck","pluck","lead","lead","bell",
+  "pluck","pluck","pluck","pluck","pluck","pluck","lead","lead",
+  "sus","sus","sus","sus","wind","pluck","pluck","perc",
+  "sus","sus","sus","sus","sus","sus","sus","perc",
+  "wind","wind","wind","wind","wind","wind","lead","lead",
+  "wind","wind","wind","wind","wind","wind","wind","wind",
+  "wind","wind","wind","wind","wind","wind","wind","wind",
+  "lead","lead","lead","lead","lead","lead","lead","lead",
+  "sus","sus","sus","sus","sus","sus","sus","sus",
+  "perc","sus","bell","sus","sus","perc","sus","sus",
+  "pluck","pluck","pluck","pluck","bell","wind","sus","wind",
+  "bell","bell","bell","perc","perc","perc","perc","sus",
+  "perc","wind","sus","bell","perc","sus","sus","perc"
+];
+function autoWave(prog){
+  const p = prog | 0;
+  return GM_WAVE[p >= 0 && p < 128 ? p : 0];
+}
+function autoShape(prog){
+  const p = prog | 0;
+  return GM_SHAPE[p >= 0 && p < 128 ? p : 0];
+}
+
+function ChipEngine(existing){
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = existing || new AC({latencyHint:"interactive"});
+  this.ctx = ctx;
+
+  if(!existing) window.__m8OutCtx = ctx;
+  this.offline = !!existing;
+
+  this.chanBus = ctx.createGain();
+  this.master  = ctx.createGain();  this.master.gain.value = 0.7;
+  this.crush   = ctx.createWaveShaper();
+  this.crush.curve = makeCrushCurve(6);
+  this.crush.oversample = "none";
+  this.out = ctx.createGain(); this.out.gain.value = 0.9;
+
+  this.lp = ctx.createBiquadFilter();
+  this.lp.type = "lowpass";
+  this.lp.frequency.value = TONE_LP;
+  this.lp.Q.value = 0.55;
+  this.lp2 = ctx.createBiquadFilter();
+  this.lp2.type = "lowpass";
+  this.lp2.frequency.value = TONE_LP;
+  this.lp2.Q.value = 0.55;
+
+  this.ls = ctx.createBiquadFilter();
+  this.ls.type = "lowshelf";
+  this.ls.frequency.value = SHELF_LOW_HZ;
+  this.ls.gain.value = SHELF_LOW_DB;
+  this.hp = ctx.createBiquadFilter();
+  this.hp.type = "highpass";
+  this.hp.frequency.value = HP_HZ;
+  this.hp.Q.value = 0.7;
+  this.hs = ctx.createBiquadFilter();
+  this.hs.type = "highshelf";
+  this.hs.frequency.value = SHELF_HI_HZ;
+  this.hs.gain.value = SHELF_HI_DB;
+  this.chanBus.connect(this.master);
+  this.master.connect(this.hp);
+  this.hp.connect(this.ls);
+  this.ls.connect(this.hs);
+  this.hs.connect(this.lp);
+  this.lp.connect(this.lp2);
+  this.lp2.connect(this.crush);
+  if(this.offline){
+    this.analyser = null;
+    this.crush.connect(this.out);
+  } else {
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.6;
+    this.crush.connect(this.analyser);
+    this.analyser.connect(this.out);
+  }
+  this.out.connect(ctx.destination);
+
+  this.chanGain = [];  this.chanPan = [];  this.chanMute = [];
+  for(let i=0;i<16;i++){
+    const g = ctx.createGain(); g.gain.value = 1;
+    const pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    if(pn){ g.connect(pn); pn.connect(this.chanBus); }
+    else g.connect(this.chanBus);
+    this.chanGain.push(g); this.chanPan.push(pn); this.chanMute.push(false);
+  }
+
+  this.pw = {};
+  for(const duty of [0.125, 0.25, 0.5]){
+    const N = 64, real = new Float32Array(N), imag = new Float32Array(N);
+    for(let n=1;n<N;n++){
+      const w = 2*Math.PI*n*duty;
+      real[n] = Math.sin(w) / (Math.PI*n);
+      imag[n] = (1 - Math.cos(w)) / (Math.PI*n);
+    }
+    this.pw[duty] = ctx.createPeriodicWave(real, imag, {disableNormalization:false});
+  }
+
+  const nb = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate);
+  nb.getChannelData(0).set(noiseSamples(ctx.sampleRate));
+  this.noiseBuf = nb;
+  this.active = [];
+}
+
+function makeCrushCurve(bits){
+  const n = Math.pow(2, bits) / 2;
+  const N = 2048, c = new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const x = (i/(N-1)) * 2 - 1;
+    c[i] = Math.round(x * n) / n;
+  }
+  return c;
+}
+
+const NOISE_DATA = new Map();
+function noiseSamples(sr){
+  const k = Math.floor(sr);
+  let d = NOISE_DATA.get(k);
+  if(d) return d;
+  const nlen = Math.floor(k * 2);
+  d = new Float32Array(nlen);
+  let seed = 12345;
+  for(let i=0;i<nlen;i++){
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    d[i] = ((seed >> 8) & 0xffff) / 32768 - 1;
+  }
+  NOISE_DATA.set(k, d);
+  return d;
+}
+ChipEngine.prototype.noteFreq = function(midi){
+  return 440 * Math.pow(2, (midi - 69) / 12);
+};
+
+ChipEngine.prototype.playTone = function(o){
+  const ctx = this.ctx, t0 = Math.max(o.start, ctx.currentTime);
+  const dur  = Math.max(0.04, o.dur);
+  const wave = o.wave === "auto" ? autoWave(o.prog) : o.wave;
+  const dest = this.chanGain[o.ch] || this.chanBus;
+  const sh = SHAPES[o.shape] || null;
+  const keep = [];
+
+  let amp = Math.max(0.0005, o.gain || 0.3);
+  let end = t0 + dur;
+
+  if(wave === "noise"){
+    amp *= 0.35 * (sh ? sh.boost : 1) * (WAVE_GAIN[wave] || 1);
+    const s = ctx.createBufferSource();
+    s.buffer = this.noiseBuf; s.loop = true;
+
+    const clampRate = r => Math.max(0.25, Math.min(4, r));
+    const baseRate = clampRate(this.noteFreq(o.note) / 440);
+    s.playbackRate.setValueAtTime(baseRate, t0);
+    if(o.bendAt && o.bendAt.length){
+      for(const b of o.bendAt)
+        s.playbackRate.linearRampToValueAtTime(clampRate(baseRate * Math.pow(2, b.v * BEND_SEMI / 12)), t0 + b.dt);
+    } else if(o.bend){
+      s.playbackRate.setValueAtTime(clampRate(baseRate * Math.pow(2, o.bend * BEND_SEMI / 12)), t0);
+    }
+    const bp = ctx.createBiquadFilter(); bp.type = "bandpass";
+    bp.frequency.value = Math.max(200, Math.min(6000, this.noteFreq(o.note) * 4));
+    bp.Q.value = 1.2;
+    const g = ctx.createGain();
+    const rel = sh ? sh.rel : 0.06; end = t0 + dur + rel;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(amp, t0 + 0.004);
+    if(sh && sh.strike != null){
+      const d1 = Math.min(sh.hit, Math.max(0.015, dur * 0.3));
+      g.gain.linearRampToValueAtTime(amp * sh.strike, t0 + 0.004 + d1);
+      g.gain.linearRampToValueAtTime(amp * tailLevel(sh, o.note),
+                                     t0 + Math.max(0.004 + d1 + 0.02, dur));
+    } else {
+      const lv = sh ? Math.max(0.05, sh.sus) : 0.6;
+      g.gain.linearRampToValueAtTime(amp * lv, t0 + (sh ? sh.dec : 0.05));
+      g.gain.setValueAtTime(amp * lv, t0 + dur);
+    }
+    g.gain.linearRampToValueAtTime(0.0001, end);
+    s.connect(bp); bp.connect(g); g.connect(dest);
+    s.start(t0); s.stop(end + 0.02);
+    keep.push(s);
+  } else {
+    const atk = 0.004;
+    const rel = sh ? sh.rel : 0.055;
+    let sus = sh ? sh.sus : (SUSTAIN[wave] || 0.7);
+    amp *= (sus > 0.8 ? 0.50 : 0.42) * (sh ? sh.boost : 1) * (WAVE_GAIN[wave] || 1);
+    end = t0 + dur + rel;
+
+    const osc = ctx.createOscillator();
+    if(wave === "saw") osc.type = "sawtooth";
+    else if(wave === "triangle") osc.type = "triangle";
+    else if(wave === "sine") osc.type = "sine";
+    else if(wave === "square") osc.type = "square";
+    else osc.setPeriodicWave(this.pw[wave === "pulse12" ? 0.125 : wave === "pulse50" ? 0.5 : 0.25]);
+
+    if(o.bendAt && o.bendAt.length){
+      osc.detune.setValueAtTime(o.bendAt[0].v * BEND_SEMI * 100, t0);
+      for(const b of o.bendAt) osc.detune.linearRampToValueAtTime(b.v * BEND_SEMI * 100, t0 + b.dt);
+    } else if(o.bend){
+      osc.detune.setValueAtTime(o.bend * BEND_SEMI * 100, t0);
+    }
+    const f = this.noteFreq(o.note);
+    osc.frequency.setValueAtTime(f, t0);
+    const d = Math.max(0.02, dur - 0.05);
+    osc.frequency.setValueAtTime(f, t0 + d);
+    osc.frequency.exponentialRampToValueAtTime(f * 0.994, t0 + dur + 0.05);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(amp, t0 + atk);
+    if(sh && sh.strike != null){
+
+      const d1 = Math.min(sh.hit, Math.max(0.015, dur * 0.3));
+      sus = tailLevel(sh, o.note);
+      g.gain.linearRampToValueAtTime(amp * sh.strike, t0 + atk + d1);
+      g.gain.linearRampToValueAtTime(amp * sus, t0 + Math.max(atk + d1 + 0.02, dur));
+    } else {
+      const dec = sh ? sh.dec : ((wave === "triangle") ? 0.02 : 0.075);
+      g.gain.linearRampToValueAtTime(amp * sus, t0 + atk + dec);
+      g.gain.setValueAtTime(amp * sus, t0 + dur);
+    }
+    g.gain.linearRampToValueAtTime(0.0001, end);
+    osc.connect(g); g.connect(dest);
+    osc.start(t0); osc.stop(end + 0.02);
+    keep.push(osc);
+  }
+
+  if(!this.offline) this.active.push({stop: end + 0.05, nodes: keep, ch: o.ch});
+};
+
+const DRUMS = {
+  35:[["t",175,42,0.16,1.00,"sine"]],
+  36:[["t",180,42,0.16,1.00,"sine"]],
+  37:[["n",0.055,"bandpass",2600,2.0,0.55],["t",1200,900,0.04,0.18,"triangle"]],
+  38:[["n",0.17,"highpass",1400,0.8,0.55],["t",230,170,0.07,0.30,"triangle"]],
+  39:[["n",0.19,"bandpass",1700,1.1,0.60]],
+  40:[["n",0.14,"highpass",2000,0.8,0.50],["t",280,200,0.06,0.28,"triangle"]],
+  41:[["t",95,52,0.28,0.85,"sine"]],
+  42:[["n",0.045,"highpass",7500,0.7,0.42]],
+  43:[["t",120,66,0.26,0.82,"sine"]],
+  44:[["n",0.06,"highpass",6200,0.7,0.36]],
+  45:[["t",150,82,0.25,0.80,"sine"]],
+  46:[["n",0.34,"highpass",6800,0.7,0.36]],
+  47:[["t",185,100,0.23,0.78,"sine"]],
+  48:[["t",225,124,0.21,0.76,"sine"]],
+  49:[["n",0.85,"highpass",5200,0.6,0.50]],
+  50:[["t",270,150,0.19,0.74,"sine"]],
+  51:[["n",0.45,"highpass",6000,0.9,0.30]],
+  52:[["n",0.70,"bandpass",4200,0.7,0.45]],
+  53:[["t",830,830,0.14,0.26,"square"],["t",1240,1240,0.11,0.20,"square"],
+      ["n",0.35,"highpass",6000,0.8,0.18]],
+  54:[["n",0.11,"highpass",5000,1.0,0.42]],
+  55:[["n",0.30,"highpass",8000,0.6,0.40]],
+  56:[["t",830,830,0.14,0.30,"square"],["t",1240,1240,0.11,0.22,"square"]],
+  57:[["n",0.95,"highpass",4600,0.6,0.48]],
+  58:[["n",0.25,"bandpass",1800,1.4,0.45]],
+  59:[["n",0.55,"highpass",5400,0.9,0.30]],
+  60:[["t",400,300,0.12,0.60,"sine"]],
+  61:[["t",300,220,0.13,0.58,"sine"]],
+  62:[["t",330,280,0.14,0.60,"sine"]],
+  63:[["t",300,250,0.20,0.62,"sine"]],
+  64:[["t",220,180,0.24,0.64,"sine"]],
+  65:[["t",420,300,0.18,0.58,"sine"]],
+  66:[["t",320,230,0.22,0.56,"sine"]],
+  67:[["t",900,900,0.09,0.30,"square"]],
+  68:[["t",660,660,0.11,0.28,"square"]],
+  69:[["n",0.08,"highpass",6500,0.9,0.34]],
+  70:[["n",0.06,"highpass",7000,0.9,0.32]],
+  71:[["t",2200,2200,0.12,0.22,"sine"]],
+  72:[["t",2100,2100,0.35,0.20,"sine"]],
+  73:[["n",0.10,"bandpass",3000,1.6,0.34]],
+  74:[["n",0.28,"bandpass",2600,1.6,0.32]],
+  75:[["n",0.05,"bandpass",2500,2.2,0.45]],
+  76:[["n",0.05,"bandpass",1800,2.0,0.45]],
+  77:[["n",0.06,"bandpass",1200,2.0,0.45]],
+  78:[["t",400,250,0.12,0.45,"sine"]],
+  79:[["t",350,600,0.25,0.42,"sine"]],
+  80:[["t",3000,3000,0.50,0.10,"sine"]],
+  81:[["t",3000,3000,0.85,0.09,"sine"]],
+  __default:[["n",0.14,"bandpass",2200,1.2,0.40]]
+};
+
+ChipEngine.prototype.playDrum = function(o){
+  const ctx = this.ctx, t0 = Math.max(o.start, ctx.currentTime);
+  const ch = o.ch, dest = this.chanGain[ch] || this.chanBus;
+  const amp = Math.max(0.0005, o.gain);
+  const recipe = DRUMS[o.note] || DRUMS.__default;
+  const nodes = [];
+  let life = 0.2;
+
+  const toneHit = (f1, f2, dur, peak, type) => {
+    const osc = ctx.createOscillator(); osc.type = type || "sine";
+    osc.frequency.setValueAtTime(f1, t0);
+    if(f2 !== f1) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t0 + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(dest);
+    osc.start(t0); osc.stop(t0 + dur + 0.02);
+    nodes.push(osc); life = Math.max(life, dur + 0.05);
+  };
+  const noiseHit = (dur, type, freq, q, peak) => {
+    const s = ctx.createBufferSource(); s.buffer = this.noiseBuf; s.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(peak, t0 + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    s.connect(f); f.connect(g); g.connect(dest);
+    s.start(t0); s.stop(t0 + dur + 0.02);
+    nodes.push(s); life = Math.max(life, dur + 0.05);
+  };
+
+  for(const part of recipe){
+    if(part[0] === "t") toneHit(part[1], part[2], part[3], part[4]*amp, part[5]);
+    else noiseHit(part[1], part[2], part[3], part[4], part[5]*amp);
+  }
+  if(!this.offline) this.active.push({stop: t0 + life + 0.05, nodes, ch});
+};
+
+let renderJob  = 0;
+let bitsJob    = 0;
+let IDB_KEYS   = new Set();
+let IDB_IDX    = [];
+let prerun     = false;
+let RENDERED   = new Set();
+let pidx       = 0;
+
+try { window.__t0 = performance.now(); } catch(e){}
+
+const App = {
+  songs: [],
+  cur: -1,
+  playing: false,
+  crush: 6,
+  renderRate: 44100,
+  renderPct: -1,
+
+};
+
+const UIPaint = { info: null, hud: null };
+const AudioHooks = { held: null, sweep: null, release: null };
+let flashT = 0;
+function paintNow(){ try { if(UIPaint.info) UIPaint.info(); if(UIPaint.hud) UIPaint.hud(); } catch(e){} }
+function setInfoText(msg){ App.infoText = msg || null; paintNow(); }
+function flashInfo(text, ms){
+  const ms2 = ms || 5000;
+  App.renderMsg = text || null;
+  App.renderMsgUntil = performance.now() + ms2;
+  paintNow();
+
+  clearTimeout(flashT);
+  flashT = setTimeout(() => {
+    if(App.renderMsgUntil && performance.now() >= App.renderMsgUntil - 50){
+      App.renderMsg = null; App.renderMsgUntil = 0;
+      paintNow();
+    }
+  }, ms2 + 30);
+}
+function setRenderHud(name, done, total, pct, sec){
+  App.hud = name ? { name, done, total, pct, sec } : null;
+  paintNow();
+}
+
+function curSong(){
+  if(App.cur < 0 || !App.songs[App.cur]) return null;
+  return App.songs[App.cur].song;
+}
+function curEntry(){ return App.cur >= 0 ? App.songs[App.cur] : null; }
+
+function intentOf(e){ return e.intent || (e.intent = { play: false, seekAt: null }); }
+
+function intentSet(e, o){
+  const it = intentOf(e);
+  if(!o) return it;
+  if("play" in o) it.play = !!o.play;
+  if("seekAt" in o) it.seekAt = (o.seekAt == null ? null : o.seekAt);
+  return it;
+}
+
+function intentCancel(e, what){
+  if(!e || !e.intent) return;
+  if(!what || what === "play") e.intent.play = false;
+  if(!what || what === "seek") e.intent.seekAt = null;
+}
+
+function intentTakePlay(e){
+  if(!e || !e.intent || !e.intent.play) return false;
+  e.intent.play = false;
+  return true;
+}
+function intentPeekSeek(e){ return (e && e.intent) ? e.intent.seekAt : null; }
+function intentTakeSeek(e){
+  if(!e || !e.intent || e.intent.seekAt == null) return null;
+  const v = e.intent.seekAt;
+  e.intent.seekAt = null;
+  return v;
+}
+
+const RENDER_MASTER_GAIN = 0.57;
+
+function crushAt(curve, x){
+  if(x <= -1) return curve[0];
+  if(x >= 1) return curve[curve.length - 1];
+  const p = (x + 1) * 0.5 * (curve.length - 1);
+  const i0 = p | 0, frac = p - i0;
+  return frac ? curve[i0] + (curve[i0+1] - curve[i0]) * frac : curve[i0];
+}
+
+function bendPointsFor(song, ch, start, dur){
+  const tl = song.bends && song.bends[ch];
+  if(!tl || !tl.length) return null;
+  const end = start + dur;
+  let lo = 0, hi = tl.length - 1, base = -1;
+  while(lo <= hi){ const m = (lo + hi) >> 1; if(tl[m].t <= start){ base = m; lo = m + 1; } else hi = m - 1; }
+  const out = [];
+  out.push({dt: 0, v: base >= 0 ? tl[base].v : 0});
+  for(let i = base + 1; i < tl.length; i++){
+    const e = tl[i];
+    if(e.t >= end) break;
+    out.push({dt: Math.max(0, e.t - start), v: e.v});
+  }
+  return out.length >= 2 ? out : null;
+}
+function voiceInto(eng, song, note, at){
+  const vel = note.vel / 127;
+  if(note.ch === 9){
+    eng.playDrum({start: at, note: note.note, ch: note.ch, gain: 0.58 * Math.pow(vel,1.2)});
+  } else {
+    const wave = song.wave[note.ch] || "auto";
+    const expK = (note.exp == null ? 127 : note.exp) / 127;
+    const vk = note.vol / 127;
+    const gain = 0.30 * Math.pow(vel, 1.25) * (0.45 + 0.55 * vk) * Math.min(1, vk * 8) * expK;
+    eng.playTone({start: at, dur: note.dur, note: note.note, ch: note.ch,
+                  prog: note.prog, wave, shape: autoShape(note.prog), gain,
+                  bend: note.bend || 0,
+                  bendAt: bendPointsFor(song, note.ch,
+                            note.bendFrom != null ? note.bendFrom : note.start, note.dur)});
+  }
+}
+function wavHeaderBlob(frames, ch, rate){
+  const ab = new ArrayBuffer(44), v = new DataView(ab);
+  const ws = (o,s) => { for(let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+  ws(0,"RIFF"); v.setUint32(4, 36 + frames*ch*2, true); ws(8,"WAVE");
+  ws(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,ch,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate*ch*2,true); v.setUint16(32,ch*2,true);
+  v.setUint16(34,16,true); ws(36,"data"); v.setUint32(40, frames*ch*2, true);
+  return new Blob([ab], {type:"audio/wav"});
+}
+
+async function renderMaster(song, onProgress){
+  const rate = App.renderRate || RENDER_RATE, TAIL = 4;
+  const totalSec = song.duration + 0.35;
+  const frames = Math.ceil(totalSec * rate);
+  const nch = totalSec > 420 ? 1 : 2;
+  const CHUNK_BUDGET = 24 * 1024 * 1024;
+  const perSec = rate * nch * 4;
+  const CHUNK = Math.max(60, Math.min(240, Math.floor(CHUNK_BUDGET / perSec - 2 * TAIL)));
+  const scopeRate = Math.round(rate / 4);
+  const scopeBuf = new Int16Array(Math.ceil(totalSec * scopeRate));
+  const parts = [];
+  const notes = song.notes.filter(n => !song.mute[n.ch] && n.ch < 16);
+  const chunkTotal = Math.max(1, Math.ceil(totalSec / CHUNK));
+  let chunkNo = 0;
+  let written = 0, sw = 0, lastYield = performance.now();
+
+  for(let t0 = 0; t0 < totalSec - 1e-6; t0 += CHUNK){
+    chunkNo++;
+    const outSec = Math.min(CHUNK, totalSec - t0);
+    const outFrames = Math.round(outSec * rate);
+    const preF = Math.round(TAIL * rate);
+    const off = new OfflineAudioContext(nch, preF + outFrames, rate);
+    const eng = new ChipEngine(off);
+    eng.master.gain.value = RENDER_MASTER_GAIN;
+    eng.crush.curve = null;
+    eng.out.gain.value = 1.0;
+    const wStart = t0 - TAIL;
+
+    const winEnd = t0 + outSec + TAIL;
+    for(const n of notes){
+      const nEnd = n.start + n.dur;
+      if(nEnd <= wStart) continue;
+      if(n.start >= winEnd) break;
+      const sBeg = n.start > wStart ? n.start : wStart;
+      const sEnd = nEnd < winEnd ? nEnd : winEnd;
+      if(sEnd - sBeg <= 0.01) continue;
+
+      voiceInto(eng, song, Object.assign({}, n, {dur: sEnd - sBeg, bendFrom: sBeg}), sBeg - wStart);
+    }
+
+    let beat = null;
+    if(onProgress){
+      const t0c = performance.now();
+      const beatLimit = renderBudgetMs(song) + 15000;
+      beat = setInterval(() => {
+        if(performance.now() - t0c > beatLimit){ clearInterval(beat); beat = null; return; }
+        onProgress(-2, chunkNo, chunkTotal, (performance.now() - t0c) / 1000);
+      }, 400);
+    }
+    let buf;
+    try { buf = await off.startRendering(); }
+    finally { if(beat){ clearInterval(beat); beat = null; } }
+    const L = buf.getChannelData(0);
+    const R = nch > 1 ? buf.getChannelData(1) : L;
+    const pcm = new Int16Array(outFrames * nch);
+    for(let i=0;i<outFrames;i++){
+      const s = preF + i;
+      const l = Math.max(-1, Math.min(1, L[s] || 0));
+      const r = Math.max(-1, Math.min(1, R[s] || 0));
+      pcm[i*nch] = (l * 32767) | 0;
+      if(nch > 1) pcm[i*nch+1] = (r * 32767) | 0;
+      if(((written + i) & 3) === 0 && sw < scopeBuf.length)
+        scopeBuf[sw++] = (((l + r) * 0.5) * 32767) | 0;
+    }
+    parts.push(pcm.buffer);
+    written += outFrames;
+    if(onProgress) onProgress(written / frames, chunkNo, chunkTotal);
+    const budget = document.hidden ? 1200 : 150;
+    if(performance.now() - lastYield > budget){
+      lastYield = performance.now();
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  return {
+    pcm: new Blob(parts, {type:"application/octet-stream"}),
+
+    frames: written, nch, rate,
+    scopeBuf: scopeBuf.subarray(0, sw), scopeRate,
+
+    bytes: written * nch * 2 + sw * 2
+  };
+}
+
+async function makeVariant(entry, bits){
+  const m = entry.master;
+  const curve = bits ? makeCrushCurve(bits) : null;
+  const bpf = m.nch * 2;
+  const step = Math.floor(m.rate * 20);
+  const parts = [wavHeaderBlob(m.frames, m.nch, m.rate)];
+
+  const gDb = await loudnessGainFor(m);
+  const g = Math.pow(10, gDb / 20);
+  const fz1 = new Float64Array(m.nch), fz2 = new Float64Array(m.nch);
+  let lastYield = performance.now();
+  for(let f=0; f<m.frames; f+=step){
+    const n = Math.min(step, m.frames - f);
+    const ab = await m.pcm.slice(f*bpf, (f+n)*bpf).arrayBuffer();
+    const src = new Int16Array(ab);
+    const nc = m.nch;
+    for(let i=0;i<src.length;i++){
+      const x = (src[i] / 32767) * g;
+
+      let xl = limitAt(x) * LIM_MAKEUP;
+      if(xl >  0.995) xl =  0.995;
+      if(xl < -0.995) xl = -0.995;
+      if(curve){
+        const q = crushAt(curve, xl);
+        const p = xl < 0 ? -xl : xl;
+        const w = p >= HARD_LEVEL ? 1 : p / HARD_LEVEL;
+        src[i] = ((q * w + xl * (1 - w)) * 32767) | 0;
+      } else {
+        src[i] = (xl * 32767) | 0;
+      }
+    }
+
+    const fl = curve ? (BITS_LP[bits] || 0) : 0;
+    if(fl){
+      const k = biquadLP(m.rate, fl, 0.7071);
+      for(let i=0;i<src.length;i++){
+        const c = i % nc;
+        const x = src[i], y = k.b0*x + fz1[c];
+        fz1[c] = k.b1*x - k.a1*y + fz2[c];
+        fz2[c] = k.b2*x - k.a2*y;
+        src[i] = y | 0;
+      }
+    }
+    parts.push(ab);
+    const budget = document.hidden ? 1200 : 150;
+    if(performance.now() - lastYield > budget){
+      lastYield = performance.now();
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+  return new Blob(parts, {type:"audio/wav"});
+}
+
+function buildActivityGrid(song){
+  const res = 20, n = Math.ceil(song.duration * res) + 2;
+  const grid = new Uint16Array(n);
+  for(const nt of song.notes){
+    if(song.mute[nt.ch] || nt.ch > 15) continue;
+    const a = Math.max(0, Math.floor(nt.start * res));
+    const b = Math.min(n-1, Math.floor((nt.start + nt.dur) * res));
+    const bit = 1 << nt.ch;
+    for(let i=a;i<=b;i++) grid[i] |= bit;
+  }
+  return {grid, res, n};
+}
+
+const CACHE_DB = "midi8bit-master", CACHE_STORE = "m";
+let dbPromise = null;
+let renderOwner = 0;
+
+function openDB(){
+  if(dbPromise) return dbPromise;
+  let to = null, timedOut = false;
+  const done = (v) => { if(to){ clearTimeout(to); to = null; } dbPromise = null; return v; };
+  dbPromise = new Promise(ok => {
+    try {
+      const req = indexedDB.open(CACHE_DB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(CACHE_STORE);
+
+      req.onsuccess = () => {
+
+        if(timedOut){ try { req.result.close(); } catch(e){} return; }
+        if(to){ clearTimeout(to); to = null; }
+        ok(req.result);
+      };
+      req.onerror = () => ok(done(null));
+      to = setTimeout(() => { timedOut = true; ok(done(null)); }, 3000);
+    } catch(e){ ok(null); dbPromise = null; }
+  });
+  return dbPromise;
+}
+
+function quickHash(buf){
+  if(!buf || typeof buf.byteLength !== "number") return "0";
+  let h = 0x811c9dc5;
+  const n = Math.min(buf.byteLength, 8192);
+  const u8 = new Uint8Array(buf, 0, n);
+  for(let i = 0; i < n; i++){ h ^= u8[i]; h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16);
+}
+function masterKey(entry){
+  const song = entry.song;
+  const rate = App.renderRate || RENDER_RATE;
+  const w = song.channels.map(c => c.ch + ":" + (song.wave[c.ch] || "auto") +
+              (song.mute[c.ch] ? "M" : "")).join(",");
+
+  return entry.name + "|" + song.noteCount + "|" + Math.round(song.duration*1000) +
+         "|" + (song.srcHash || "?") +
+         "|" + rate +
+         "|" + TONE_LP + "|" + HP_HZ + ":" + SHELF_LOW_HZ + ":" + SHELF_LOW_DB +
+         ":" + SHELF_HI_HZ + ":" + SHELF_HI_DB + "|v" + MIX_VER + "|" + w;
+}
+function idbRun(fn){
+  return openDB().then(db => new Promise(ok => {
+    if(!db) return ok(null);
+    try {
+      const tx = db.transaction(CACHE_STORE, fn.mode || "readonly");
+      const req = fn.run(tx.objectStore(CACHE_STORE));
+      let out = undefined, done = false;
+      const fin = v => { if(!done){ done = true; ok(v); } };
+      req.onsuccess = () => { out = req.result; };
+      req.onerror   = () => fin(null);
+      tx.oncomplete = () => fin(out === undefined ? null : out);
+      tx.onerror    = () => fin(null);
+      tx.onabort    = () => fin(null);
+      setTimeout(() => { console.warn("[缓存] IndexedDB 请求超时（按未命中处理）"); fin(null); }, 20000);
+    } catch(e){ ok(null); }
+  }));
+}
+const idbGet = key => idbRun({run: st => st.get(key)});
+const idbDel = key => idbRun({mode:"readwrite", run: st => st.delete(key)});
+const idbSet = (key, val) => idbRun({mode:"readwrite", run: st => st.put(val, key)});
+
+function attachMaster(entry, res, fromDisk, keyIn){
+  entry.master = {pcm: res.pcm, frames: res.frames, nch: res.nch, rate: res.rate,
+                  bytes: res.bytes};
+  if(res.scopeBuf && res.scopeBuf.length){
+    entry.scopeBuf  = res.scopeBuf;
+    entry.scopeRate = res.scopeRate || 11025;
+  }
+
+  entry.masterKey = keyIn || masterKey(entry);
+  if(!fromDisk) delete entry.badKey;
+  if(!entry.activity) entry.activity = buildActivityGrid(entry.song);
+  if(fromDisk){
+
+    const key = entry.masterKey;
+
+    RENDERED.add(key);
+
+    if(!IDB_KEYS.has(key)){
+      publishIndex(IDB_IDX.concat([{key, t: Date.now(),
+                    b: (res.bytes || (res.frames && res.nch ? res.frames * res.nch * 2 : 0))}]));
+
+      idbEnqueue(() => idbSet("__idx", IDB_IDX));
+    }
+    emit("badges");
+  }
+  return entry.master;
+}
+
+async function getMaster(entry, onProgress){
+  const key = masterKey(entry);
+
+  const hit = await idbGet(key);
+  if(hit && hit.frames && hit.pcm){
+    if(onProgress) onProgress(-1, 0, 1);
+    const res = {pcm: hit.pcm, frames: hit.frames, nch: hit.nch, rate: hit.rate,
+                 scopeBuf: hit.scope ? new Int16Array(hit.scope) : null,
+                 scopeRate: hit.scopeRate || 11025, bytes: hit.bytes};
+    attachMaster(entry, res, true);
+    return res;
+  }
+  const epAtStart = App.cacheEpoch || 0;
+  const res = await renderMaster(entry.song, onProgress);
+  attachMaster(entry, res, false, key);
+  storeMaster(entry, res, key, epAtStart);
+  return res;
+}
+
+function withTimeout(p, ms, tag){
+  return Promise.race([
+    p,
+    new Promise((_, no) => setTimeout(() => no(new Error("超时:" + (tag || ""))), ms))
+  ]);
+}
+
+function kickRender(entry, opts){
+  if(!entry) return;
+  opts = opts || {};
+  if(opts.play) intentSet(entry, {play: true});
+  if(opts.seek != null) intentSet(entry, {seekAt: opts.seek});
+  if(App.renderingEntry === entry) return;
+  if(entry._loading){
+    if((entry.dirty || (entry.intent && entry.intent.play)) && (entry._retryN || 0) < 40){
+      entry._retryN = (entry._retryN || 0) + 1;
+      clearTimeout(entry._retryT);
+      entry._retryT = setTimeout(() => {
+        entry._retryT = null;
+        if(curEntry() === entry) kickRender(entry);
+      }, 1500);
+    }
+    return;
+  }
+  if(!entry.dirty && entry.master){
+    if(curEntry() === entry && intentTakePlay(entry)){
+      if(entry.curBits !== App.crush) kickBits(entry, {play: true});
+      else emit("autoplay", entry);
+    }
+    return;
+  }
+  if(entry.failUntil && entry.failUntil > performance.now()){
+    const left = Math.ceil((entry.failUntil - performance.now()) / 1000);
+    setInfoText("渲染接连失败，" + left + " 秒后重试：" + shortName(entry.name));
+    return;
+  }
+  startRender(entry);
+}
+async function startRender(entry){
+  let renderFailed = null;
+  const token = ++renderJob;
+  const genKey = masterKey(entry);
+  App.renderingEntry = entry;
+  renderOwner = token;
+  App.renderPct = 0;
+  setInfoText("准备中…");
+  App.transportDirty = true;
+  try {
+    const res = await withTimeout(getMaster(entry, (pct, done, total, sec) => {
+      if(token !== renderJob) return;
+      if(pct === -2){
+        App.renderPct = 0;
+        const mine = (App.renderingEntry === curEntry());
+        setInfoText((mine ? "渲染中 " : "后台渲染 ") + shortName(entry.name) +
+                    " " + (done||1) + "/" + (total||1) + " 块 · " + Math.round(sec) + "s");
+        return;
+      }
+      if(pct < 0){ App.renderPct = 0; setInfoText("读取缓存…"); return; }
+      App.renderPct = pct;
+      const mine2 = (App.renderingEntry === curEntry());
+      setInfoText((mine2 ? "渲染中 " : "后台渲染 ") + shortName(entry.name) +
+                  " " + (done||1) + "/" + (total||1) + " 块 · 完成");
+    }), renderBudgetMs(entry.song), "渲染");
+    if(token !== renderJob) return;
+    entry.master = {pcm: res.pcm, frames: res.frames, nch: res.nch, rate: res.rate, bytes: res.bytes};
+    entry.masterKey = genKey;
+    entry.scopeBuf  = res.scopeBuf;
+    entry.scopeRate = res.scopeRate;
+    entry.activity  = buildActivityGrid(entry.song);
+    dropVariants(entry);
+    entry.dirty = false;
+    applyReadyFromIndex();
+    entry.renderFail = 0; entry.failUntil = 0;
+    entry._retryN = 0; clearTimeout(entry._retryT); entry._retryT = null;
+    App.renderingEntry = null;
+    emit("badges");
+
+    if(masterKey(entry) !== genKey){ entry.dirty = true; startRender(entry); return; }
+    await kickBitsNow(entry, App.crush);
+    if(token !== renderJob) return;
+
+    App.renderPct = -1; setInfoText(null); setRenderHud(null);
+    App.infoDirty = true;
+    schedulePrerender();
+    renderFailed = null;
+  } catch(err){
+    renderFailed = "渲染失败：" + (err && err.message || err);
+    entry.renderFail = (entry.renderFail || 0) + 1;
+    entry.failUntil = performance.now() + Math.min(120000, 8000 * Math.pow(2, entry.renderFail - 1));
+    console.warn("[渲染] 失败", entry.name, "第", entry.renderFail, "次");
+    console.warn("[渲染] 失败", entry.name, err);
+  } finally {
+    const mine = (renderOwner === token);
+    if(mine) App.renderingEntry = null;
+    if(mine){
+      App.renderPct = -1;
+      setRenderHud(null);
+      ++renderJob;
+      if(renderFailed) flashInfo(renderFailed, 8000);
+      else setInfoText(null);
+    } else if(renderFailed){
+      flashInfo(renderFailed, 8000);
+    }
+    App.infoDirty = true;
+  }
+  App.transportDirty = true;
+}
+
+function kickBits(entry, opts){
+  if(!entry) return;
+  opts = opts || {};
+  if(opts.play) intentSet(entry, {play: true});
+  if(opts.seek != null) intentSet(entry, {seekAt: opts.seek});
+  if(!entry.master) return;
+  kickBitsNow(entry, App.crush);
+}
+
+function dropVariants(entry){
+  if(!entry) return;
+  const held = AudioHooks.held ? AudioHooks.held(entry) : null;
+  if(entry.variants){
+    for(const k of Object.keys(entry.variants)){
+      const u = entry.variants[k];
+
+      if(held ? held.has(u) : true){
+        retireUrl(entry, u);
+        continue;
+      }
+      try { URL.revokeObjectURL(u); } catch(e){}
+    }
+  }
+  entry.variants = {};
+  entry.variantBlobs = {};
+
+  entry.blob = null;
+  entry.audioUrl = null;
+  if(AudioHooks.sweep) AudioHooks.sweep(entry);
+}
+
+function retireUrl(entry, url){
+  if(!entry || !url) return;
+  if(!entry.zombie) entry.zombie = [];
+  if(entry.zombie.indexOf(url) < 0) entry.zombie.push(url);
+}
+
+function sweepMasters(){
+  const cur = curEntry();
+  for(const e of App.songs){
+
+    if(e !== cur && e.master && !e.storing){ e.master = null; e.scopeBuf = null; }
+  }
+  applyReadyFromIndex();
+}
+function reclaimStaleVariants(){
+  const cur = curEntry();
+  const ci = App.songs.indexOf(cur);
+  for(let i = 0; i < App.songs.length; i++){
+    const e = App.songs[i];
+    if(e === cur) continue;
+    if(ci >= 0 && i > ci && i <= ci + PRERENDER_AHEAD) continue;
+    if(!e.variants || !Object.keys(e.variants).length) continue;
+    if(AudioHooks.held && AudioHooks.held(e).size) continue;
+    dropVariants(e);
+  }
+}
+async function generateVariant(entry, bits){
+  const key = String(bits);
+  if(entry.variants && entry.variants[key]) return entry.variants[key];
+  if(!entry._variantJobs) entry._variantJobs = {};
+  if(entry._variantJobs[key]) return entry._variantJobs[key];
+  const job = (async () => {
+    try {
+      const blob = await makeVariant(entry, bits);
+      const url = URL.createObjectURL(blob);
+      if(!entry.variants) entry.variants = {};
+      if(!entry.variantBlobs) entry.variantBlobs = {};
+      const prev = entry.variants[key];
+      if(prev && prev !== url) retireUrl(entry, prev);
+      entry.variants[key] = url;
+      entry.variantBlobs[key] = blob;
+      return url;
+    } finally {
+      delete entry._variantJobs[key];
+    }
+  })();
+  entry._variantJobs[key] = job;
+  return job;
+}
+async function kickBitsNow(entry, bits){
+  const key = String(bits);
+  const token = ++bitsJob;
+  if(entry.variants && entry.variants[key]){
+    entry.curBits = bits;
+    entry.blob = (entry.variantBlobs && entry.variantBlobs[key]) || null;
+    emit("variant", entry, entry.variants[key]);
+    if(!App.renderingEntry){ App.renderPct = -1; setInfoText(null); App.transportDirty = true; }
+    return;
+  }
+  App.renderPct = 0;
+  setInfoText("生成 " + (bits ? bits + "bit" : "原声") + " 音频…");
+  try {
+    const url = await generateVariant(entry, bits);
+    if(token !== bitsJob) return;
+    delete entry.badKey;
+    App.renderPct = -1; setInfoText(null);
+    entry.curBits = bits;
+    entry.blob = entry.variantBlobs[key] || null;
+    if(curEntry() === entry) emit("variant", entry, url);
+    else App.infoDirty = true;
+  } catch(err){
+    App.renderPct = -1;
+    const msg = String((err && err.message) || err);
+    if(/not be found|NotFound|DataCloneError/i.test(msg)){
+      entry.master = null;
+      entry.scopeBuf = null;
+
+      entry.failUntil = performance.now() + 8000;
+      const badKey = entry.masterKey || masterKey(entry);
+      entry.badKey = badKey;
+
+      RENDERED.delete(badKey);
+      publishIndex(IDB_IDX.filter(x => x.key !== badKey));
+      idbEnqueue(async () => {
+        const rd2 = await idbDelOk(badKey);
+        if(!rd2 || !rd2.ok) flashInfo("缓存清理失败：" + ((rd2 && rd2.why) || "未知原因"), 10000);
+        await idbSet("__idx", IDB_IDX);
+      });
+      emit("badges");
+      flashInfo("音频数据已失效（存储被回收），稍后重新渲染：" + shortName(entry.name), 9000);
+    } else {
+      flashInfo("导出失败：" + msg, 6000);
+    }
+  }
+  App.transportDirty = true;
+}
+
+let idbQueue = Promise.resolve();
+function idbEnqueue(fn){
+
+  idbQueue = idbQueue.then(fn).catch(err => console.warn("[缓存] 队列任务失败", err));
+  return idbQueue;
+}
+
+async function loadIdbIndex(){
+  for(let attempt = 0; attempt < 2; attempt++){
+    const r = await idbGetOk("__idx");
+    if(r && r.ok){
+      const raw = r.value;
+      publishIndex(Array.isArray(raw) ? raw.filter(x => x && x.key) : []);
+      IDB_KEYS.forEach(k => RENDERED.add(k));
+      App.idxRetry = 0;
+      return;
+    }
+    if(r && r.why && window.console && console.warn) console.warn("[缓存] 索引读取失败：", r.why);
+    if(attempt === 0) await new Promise(r2 => setTimeout(r2, 800));
+  }
+
+  App.idxRetry = (App.idxRetry || 0) + 1;
+  flashInfo("缓存索引读取失败：暂时无法判断哪些已缓存（数据没丢）", 12000);
+  if(App.idxRetry <= 3) setTimeout(() => idbEnqueue(loadIdbIndex), 6000);
+}
+
+function evictCache(){
+  const cur = curEntry();
+  const keepKey = cur ? masterKey(cur) : null;
+
+  const unknown = [], sized = [], kept = [];
+  for(const x of IDB_IDX){
+    if(x.key === keepKey){ kept.push(x); continue; }
+    (x.b ? sized : unknown).push(x);
+  }
+
+  const drop = unknown.slice();
+
+  const idxOf = new Map();
+  for(let i = 0; i < App.songs.length; i++) idxOf.set(masterKey(App.songs[i]), i);
+  const ci = (keepKey != null && idxOf.has(keepKey)) ? idxOf.get(keepKey) : -1;
+  const rank = x => !idxOf.has(x.key) ? 0 : ((ci >= 0 && idxOf.get(x.key) < ci) ? 1 : 2);
+  sized.sort((a,b) => rank(a) - rank(b) || (a.t || 0) - (b.t || 0));
+  let total = 0;
+  for(const x of kept) total += (x.b || 0);
+  for(const x of sized) total += x.b;
+  const keepSized = [];
+  for(let i = 0; i < sized.length; i++){
+
+    if(total > CACHE_LOW && keepSized.length + (sized.length - i) > 1){
+      total -= sized[i].b;
+      drop.push(sized[i]);
+    } else {
+      keepSized.push(sized[i]);
+    }
+  }
+
+  return drop;
+}
+
+function idbSetOk(key, val){
+  return new Promise(res => {
+    let done = false;
+    const fin = (ok, why) => { if(!done){ done = true; res({ok: !!ok, why: why || ""}); } };
+    openDB().then(db => {
+      if(!db) return fin(false, "无法打开数据库");
+      try {
+        const tx = db.transaction(CACHE_STORE, "readwrite");
+        tx.objectStore(CACHE_STORE).put(val, key);
+        tx.oncomplete = () => fin(true);
+        tx.onerror  = () => fin(false, "写入失败（" + ((tx.error && tx.error.name) || "未知") + "）");
+        tx.onabort  = () => fin(false, "事务中止（" + ((tx.error && tx.error.name) || "配额或系统回收") + "）");
+
+        setTimeout(() => fin(false, "写入 20 秒未完成"), 20000);
+      } catch(e){ fin(false, "写入抛错（" + ((e && e.name) || e) + "）"); }
+    }).catch(e => fin(false, "打开库失败（" + ((e && e.name) || e) + "）"));
+  });
+}
+
+function idbDelOk(key){
+  return new Promise(res => {
+    let done = false;
+    const fin = (ok, why) => { if(!done){ done = true; res({ok: !!ok, why: why || ""}); } };
+    openDB().then(db => {
+      if(!db) return fin(false, "无法打开数据库");
+      try {
+        const tx = db.transaction(CACHE_STORE, "readwrite");
+        tx.objectStore(CACHE_STORE).delete(key);
+        tx.oncomplete = () => fin(true);
+        tx.onerror  = () => fin(false, "删除失败（" + ((tx.error && tx.error.name) || "未知") + "）");
+        tx.onabort  = () => fin(false, "事务中止（" + ((tx.error && tx.error.name) || "配额或系统回收") + "）");
+        setTimeout(() => fin(false, "删除 20 秒未完成"), 20000);
+      } catch(e){ fin(false, "删除抛错（" + ((e && e.name) || e) + "）"); }
+    }).catch(e => fin(false, "打开库失败（" + ((e && e.name) || e) + "）"));
+  });
+}
+
+function idbGetOk(key){
+  return new Promise(res => {
+    let done = false;
+    const fin = (ok, value, why) => { if(!done){ done = true; res({ok: !!ok, value: value, why: why || ""}); } };
+    openDB().then(db => {
+      if(!db) return fin(false, null, "无法打开数据库");
+      try {
+        const tx = db.transaction(CACHE_STORE, "readonly");
+        const rq = tx.objectStore(CACHE_STORE).get(key);
+        tx.oncomplete = () => fin(true, rq.result);
+        tx.onerror  = () => fin(false, null, "读取失败（" + ((tx.error && tx.error.name) || "未知") + "）");
+        tx.onabort  = () => fin(false, null, "事务中止（" + ((tx.error && tx.error.name) || "配额或系统回收") + "）");
+        setTimeout(() => fin(false, null, "读取 20 秒未完成"), 20000);
+      } catch(e){ fin(false, null, "读取抛错（" + ((e && e.name) || e) + "）"); }
+    }).catch(e => fin(false, null, "打开库失败（" + ((e && e.name) || e) + "）"));
+  });
+}
+
+async function verifyCacheAgainstDisk(){
+  const bad = [];
+  try {
+    const all = await idbRun({ run: st => st.getAllKeys() });
+    const onDisk = new Set((Array.isArray(all) ? all : []).filter(k => k !== "__idx"));
+    const inIdx  = new Set((IDB_IDX || []).map(x => x && x.key).filter(Boolean));
+    for(const k of inIdx)  if(!onDisk.has(k)) bad.push("清单里有、磁盘上没有：" + String(k).split("|")[0]);
+    for(const k of onDisk) if(!inIdx.has(k))  bad.push("磁盘上有、清单里没有：" + String(k).split("|")[0]);
+  } catch(e){ bad.push("核对失败：" + ((e && e.name) || e)); }
+  if(bad.length){
+    flashInfo("缓存与磁盘不一致：" + bad.slice(0,2).join("；") + (bad.length>2 ? " 等 "+bad.length+" 项" : ""), 14000);
+    if(window.console && console.warn) console.warn("[磁盘核对]", bad);
+  }
+  return bad;
+}
+
+async function adoptOrReapOrphans(){
+  await idbQueue;
+  let all;
+  try { all = await idbRun({ run: st => st.getAllKeys() }); }
+  catch(e){ return { adopted: 0, reaped: 0 }; }
+  const onDisk = (Array.isArray(all) ? all : []).filter(k => k !== "__idx");
+  if(!onDisk.length) return { adopted: 0, reaped: 0 };
+  const inIdx = new Set((IDB_IDX || []).map(x => x && x.key).filter(Boolean));
+  const want  = new Map();
+  for(const e of App.songs) want.set(masterKey(e), e);
+  const adopt = [], reap = [];
+  for(const k of onDisk){ if(inIdx.has(k)) continue; (want.has(k) ? adopt : reap).push(k); }
+
+  if(adopt.length){
+    const add = [];
+    for(const k of adopt){
+      const rec = await idbGet(k);
+      add.push({ key: k, t: 0,
+                 b: (rec && rec.bytes) || (rec && rec.frames && rec.nch ? rec.frames * rec.nch * 2 : 0) });
+    }
+    publishIndex(IDB_IDX.concat(add));
+    idbEnqueue(() => idbSet("__idx", IDB_IDX));
+  }
+  let reaped = 0;
+  for(const k of reap){
+    const r = await idbDelOk(k);
+    if(r && r.ok) reaped++;
+  }
+  if(adopt.length || reaped){
+    flashInfo("缓存整理：收养 " + adopt.length + " 条可用条目，回收 " + reaped + " 条无主记录", 9000);
+    if(window.console && console.info) console.info("[缓存] 收养", adopt.length, "回收", reaped);
+  }
+  return { adopted: adopt.length, reaped };
+}
+
+function releaseNonCurrentPcm(entry){
+  if(curEntry() !== entry){
+    entry.master = null;
+    entry.scopeBuf = null;
+  }
+}
+
+async function applyEviction(drop){
+  if(!drop.length) return;
+  const gone = [];
+  for(const d of drop){
+    const r = await idbDelOk(d.key);
+    if(r && r.ok) gone.push(d.key);
+    else flashInfo("缓存删除失败：" + ((r && r.why) || "未知原因"), 10000);
+  }
+  if(gone.length) publishIndex(IDB_IDX.filter(x => !gone.includes(x.key)));
+}
+function storeMaster(entry, res, keyIn, epIn){
+
+  const key = keyIn || entry.masterKey || masterKey(entry);
+  RENDERED.add(key);
+
+  const ep = (epIn != null) ? epIn : (App.cacheEpoch || 0);
+  const data = {pcm: res.pcm, frames: res.frames, nch: res.nch, rate: res.rate,
+
+                scope: res.scopeBuf, scopeRate: res.scopeRate,
+                bytes: res.bytes};
+
+  idbEnqueue(() => settleMasterWrite(entry, key, data, ep));
+}
+
+async function settleMasterWrite(entry, key, data, ep){
+    const w = await idbSetOk(key, data);
+
+    if(ep !== (App.cacheEpoch || 0)){
+      const rd = await idbDelOk(key);
+      if(!rd || !rd.ok) flashInfo("缓存清理失败：" + ((rd && rd.why) || "未知原因"), 10000);
+      RENDERED.delete(key);
+      return;
+    }
+    const okw = !!(w && w.ok);
+    if(!okw){
+      RENDERED.delete(key);
+      entry.storeFailUntil = performance.now() + 60000;
+      emit("badges");
+      console.warn("[缓存] 写盘失败，已撤销就绪状态，稍后重试：", entry.name, w && w.why);
+      releaseNonCurrentPcm(entry);
+      applyReadyFromIndex();
+      flashInfo("缓存写入失败：" + ((w && w.why) || "未知原因") + "（本次播放不受影响）", 10000);
+      return;
+    }
+    releaseNonCurrentPcm(entry);
+    const next = IDB_IDX.filter(x => x.key !== key).concat([{key, t: Date.now(), b: data.bytes || 0}]);
+    next.sort((a,b) => (a.t||0) - (b.t||0));
+    publishIndex(next);
+
+    const drop = evictCache();
+    if(drop.length) cachePressure = true;
+    await applyEviction(drop);
+    delete entry.badKey;
+    const wi = await idbSetOk("__idx", IDB_IDX);
+    if(!wi || !wi.ok){
+      flashInfo("缓存索引写入失败：" + ((wi && wi.why) || "未知原因") + "（已渲内容稍后仍可读出）", 10000);
+    }
+}
+
+function publishIndex(next){
+  IDB_IDX = next;
+  IDB_KEYS = new Set(next.map(x => x && x.key).filter(Boolean));
+  applyReadyFromIndex();
+}
+const __invSig = { last: "" };
+function checkCacheInvariant(){
+  const bad = [], seen = new Set();
+  for(const x of (IDB_IDX || [])){
+    if(!x || !x.key){ bad.push("索引里有空 key"); continue; }
+    if(seen.has(x.key)) bad.push("索引重复：" + x.key);
+    seen.add(x.key);
+  }
+  for(const k of seen)   if(!IDB_KEYS.has(k)) bad.push("索引有、IDB_KEYS 没有：" + k);
+  for(const k of IDB_KEYS) if(!seen.has(k))   bad.push("IDB_KEYS 有、索引没有：" + k);
+  for(const e of App.songs){
+    const K = masterKey(e);
+    const want = IDB_KEYS.has(K) && e.badKey !== K;
+    if(e.ready !== want) bad.push("ready 与推导不符：" + shortName(e.name));
+  }
+  const sig = bad.join("|");
+  if(bad.length && sig !== __invSig.last){
+    __invSig.last = sig;
+    flashInfo("缓存不变量异常：" + bad.slice(0,2).join("；") + (bad.length>2 ? " 等 "+bad.length+" 项" : ""), 12000);
+    if(window.console && console.warn) console.warn("[不变量]", bad);
+  }
+  if(!bad.length) __invSig.last = "";
+  return bad;
+}
+
+function applyReadyFromIndex(){
+  let changed = false;
+  for(const e of App.songs){
+    const key = masterKey(e);
+    const want = IDB_KEYS.has(key) && e.badKey !== key;
+    if(e.ready !== want){ e.ready = want; changed = true; }
+  }
+  if(changed) emit("badges");
+  checkCacheInvariant();
+}
+
+async function tidyCacheAtStartup(){
+  try { await adoptOrReapOrphans(); } catch(e){}
+  const drop = evictCache();
+  if(!drop.length){ verifyCacheAgainstDisk(); return; }
+  const gone = [];
+  for(const d of drop){
+    const r = await idbDelOk(d.key);
+    if(r && r.ok) gone.push(d.key);
+    else console.warn("[缓存] 删除失败，保留索引条目：", d.key, r && r.why);
+  }
+  if(gone.length) publishIndex(IDB_IDX.filter(x => !gone.includes(x.key)));
+  const wi = await idbSetOk("__idx", IDB_IDX);
+  if(!wi || !wi.ok){
+    flashInfo("缓存索引写入失败：" + ((wi && wi.why) || "未知原因"), 10000);
+  }
+  console.info("[缓存] 启动整理：清掉", drop.length, "条（字节数未知或超预算）");
+  verifyCacheAgainstDisk();
+}
+
+async function ensureMaster(entry){
+  if(entry.master) return entry.master;
+  if(entry._loading) return null;
+  if(App.renderingEntry === entry) return null;
+  if(entry.busy || entry.storing) return null;
+  if(entry.failUntil && entry.failUntil > performance.now()) return null;
+  entry._loading = true;
+  try {
+    await withTimeout(getMaster(entry, null), renderBudgetMs(entry.song), "渲染");
+  } catch(e){
+    entry.renderFail = (entry.renderFail || 0) + 1;
+    entry.failUntil = performance.now() + Math.min(120000, 8000 * Math.pow(2, entry.renderFail - 1));
+  } finally {
+    entry._loading = false;
+  }
+  if(entry.master){ entry.renderFail = 0; entry.failUntil = 0; }
+  return entry.master;
+}
+
+let prerunAt = 0;
+let prerunEntry = null;
+
+let prerunSeq = 0;
+
+function estMasterBytes(song){
+  const rate = App.renderRate || RENDER_RATE;
+  const sec = ((song && song.duration) ? song.duration : 120) + 0.35;
+  const nch = sec > 420 ? 1 : 2;
+  return Math.ceil(sec * rate) * nch * 2 + Math.ceil(sec * Math.round(rate / 4)) * 2;
+}
+
+function pickPrerenderTarget(){
+  if(App.cur < 0) return null;
+  const used = (IDB_IDX || []).reduce((a, x) => a + (x.b || 0), 0);
+  const end = App.songs.length;
+  for(let i = App.cur + 1; i < end; i++){
+    const e = App.songs[i];
+
+    if(e && !e.ready && !e.busy && !e.storing && !RENDERED.has(masterKey(e))
+       && !(e.failUntil > performance.now())
+
+       && !(e.storeFailUntil > performance.now())){
+      if(used + estMasterBytes(e.song) > CACHE_BYTES) return null;
+      return e;
+    }
+  }
+  return null;
+}
+on("prerender", () => prerenderLoop());
+async function prerenderLoop(){
+  if(prerun && prerunEntry &&
+     performance.now() - prerunAt > (renderBudgetMs(prerunEntry.song) + 30000)){
+
+    const dead = prerunEntry;
+    dead.busy = false; dead.storing = false; dead._loading = false;
+    console.warn("[预渲染] 看门狗超时，撤销", dead.name);
+    prerun = false; prerunEntry = null; prerunSeq++;
+  }
+  if(prerun) return;
+  if(document.hidden) return;
+  if(App.renderingEntry) return;
+
+  if(performance.now() - (App.audioChangedAt || 0) < 2000) return;
+  prerun = true; prerunAt = performance.now();
+  const myRun = ++prerunSeq;
+
+  const bump = () => { prerunAt = performance.now(); };
+  try {
+    let n = 0;
+    while(n++ < 3){
+
+      if(App.renderingEntry) break;
+      const t = pickPrerenderTarget();
+
+      if(!t){ setRenderHud(null); break; }
+      prerunEntry = t;
+      t.busy = true; t.storing = true; t._loading = true;
+      const tStart = performance.now();
+
+      const genKey = masterKey(t);
+      const epAtStart = App.cacheEpoch || 0;
+      try {
+
+        bump();
+
+        const res = await withTimeout(renderMaster(t.song, (pct, done, total, sec) =>
+          setRenderHud("预渲染 " + shortName(t.name), done, total, pct, sec)
+        ), renderBudgetMs(t.song), "预渲染");
+        t.master = {pcm: res.pcm, frames: res.frames, nch: res.nch,
+                    rate: res.rate, bytes: res.bytes};
+        t.masterKey = genKey;
+        t.scopeBuf = res.scopeBuf; t.scopeRate = res.scopeRate;
+        t.activity = buildActivityGrid(t.song);
+        dropVariants(t); t.dirty = false;
+        const ci = App.songs.indexOf(curEntry()), ti = App.songs.indexOf(t);
+        if(ci >= 0 && ti > ci && ti <= ci + PRERENDER_AHEAD){
+          try {
+            await withTimeout(generateVariant(t, App.crush), 15000, "备成品");
+          } catch(e2){
+            console.warn("[预渲染] 备成品未完成（不影响干声写盘）", t.name,
+                         (e2 && e2.message) || e2);
+          }
+        }
+        storeMaster(t, res, genKey, epAtStart);
+        reclaimStaleVariants();
+        sweepMasters();
+        t.renderFail = 0;
+      } catch(err){
+
+        t.renderFail = (t.renderFail || 0) + 1;
+        const wait = Math.min(120000, 5000 * Math.pow(2, t.renderFail - 1));
+        t.failUntil = performance.now() + wait;
+        console.warn("[预渲染] 失败", t.name, "第", t.renderFail, "次，退避", Math.round(wait/1000), "秒",
+                     "（花了", Math.round((performance.now()-tStart)/1000), "秒）", err && err.message || err);
+      }
+      finally { sweepMasters(); t.busy = false; t._loading = false; setTimeout(() => { t.storing = false; }, 1500); }
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } finally { if(myRun === prerunSeq){ prerun = false; prerunEntry = null; } }
+}
+setInterval(prerenderLoop, 2000);
+
+let dropBehindBusy = false;
+async function dropCacheBehind(){
+  if(dropBehindBusy) return;
+
+  const used = (IDB_IDX || []).reduce((a, x) => a + (x.b || 0), 0);
+
+  if(!cachePressure) return;
+
+  if(used < CACHE_LOW){ cachePressure = false; return; }
+  const keep = new Set();
+  for(let i = Math.max(0, App.cur); i < App.songs.length; i++) keep.add(masterKey(App.songs[i]));
+  const drop = (IDB_IDX || []).filter(x => x && x.key && !keep.has(x.key));
+  if(!drop.length) return;
+  dropBehindBusy = true;
+  try {
+    const gone = [];
+    for(const d of drop){
+      const r = await idbDelOk(d.key);
+      if(r && r.ok) gone.push(d.key);
+      else flashInfo("缓存删除失败，已跳过：" + ((r && r.why) || "未知原因"), 10000);
+    }
+    if(gone.length){
+      publishIndex(IDB_IDX.filter(x => !gone.includes(x.key)));
+
+      await idbEnqueue(async () => {
+        const wi = await idbSetOk("__idx", IDB_IDX);
+        if(!wi || !wi.ok) flashInfo("缓存索引写入失败：" + ((wi && wi.why) || "未知原因"), 10000);
+      });
+      cachePressure = false;
+    }
+  } finally { dropBehindBusy = false; }
+}
+function play(){
+  const e = curEntry(); if(!e) return;
+  dropCacheBehind();
+  App.wantPlay = true;
+  App.audioChangedAt = performance.now();
+  silenceOthers();
+  if(!e.master){ kickRender(e, {play:true}); return; }
+
+  if(e.curBits !== App.crush && e.audioUrl && isFinite(P().duration) && P().duration > 0){
+    const p = P().play(); if(p && p.catch) p.catch(()=>{});
+    kickBits(e, {play: true, seek: P().currentTime});
+    return;
+  }
+  if(e.curBits !== App.crush || !e.audioUrl){ kickBits(e, {play:true}); return; }
+  if(P().error){
+    const e2 = curEntry();
+    const canRetry = !!(e2 && e2.blob && !e2.usedDataUrl);
+    if(canRetry) intentSet(e2, {play: true});
+    fallbackToDataUrl();
+    if(!canRetry) flashInfo("音频加载失败，无法播放：" + shortName(e2 ? e2.name : ""), 8000);
+    return;
+  }
+  if(isFinite(P().duration) && P().currentTime >= P().duration - 0.02) P().currentTime = 0;
+  const p = P().play();
+  if(p && p.catch) p.catch(()=>{});
+}
+
+function pause(){
+  App.wantPlay = false; App.audioChangedAt = performance.now();
+  intentCancel(curEntry(), "play");
+  try { P().pause(); } catch(e){}
+}
+function stop(){
+  App.wantPlay = false;
+  App.audioChangedAt = performance.now();
+  intentCancel(curEntry());
+  try { P().pause(); } catch(e){}
+  try { P().currentTime = 0; } catch(e){}
+  App.playing = false;
+  updateTransport(); updateMsState();
+}
+function seek(t){
+  const e = curEntry(); if(!e) return;
+  const el = P();
+  const sameSrc = !!(el.dataset.for && el.dataset.for === e.audioUrl);
+  const lim = (sameSrc && isFinite(el.duration) && el.duration > 0) ? el.duration : e.song.duration;
+  t = Math.max(0, Math.min(t, lim || 0));
+  if(!sameSrc){
+    intentSet(e, {seekAt: t});
+    emit("redraw");
+    updatePositionState(); updateTransport();
+    return;
+  }
+  try { el.currentTime = t; } catch(err){}
+  emit("redraw");
+  updatePositionState(); updateTransport();
+}
+function togglePlay(){
+  const e = curEntry();
+  if(!e) return;
+  e.failUntil = 0; e.renderFail = 0;
+  if(App.playing) pause(); else play();
+}
+
+const AUDIO = [$("player"), $("player-b")];
+const P = () => AUDIO[pidx];
+
+function useVariant(entry, url){
+  if(curEntry() !== entry) return;
+  entry.audioUrl = url;
+  entry.blob = entry.blob || null;
+  applyEntryAudio(entry);
+}
+
+function applyEntryAudio(entry){
+  const url = entry.audioUrl;
+  const idle = AUDIO[1 - pidx];
+  if(idle.dataset.for === url && idle.readyState >= 1){
+
+    const old = P();
+    try { old.pause(); } catch(e){}
+    old.muted = true;
+    idle.volume = old.volume;
+    pidx = 1 - pidx;
+    silenceOthers();
+    setTimeout(() => {
+      if(AUDIO[pidx] === old) return;
+      try { old.removeAttribute("src"); old.load(); } catch(e){}
+      delete old.dataset.for;
+      sweepZombies();
+    }, 1000);
+  } else {
+    const cur = P();
+    if(cur.dataset.for !== url){
+      try { cur.pause(); } catch(e){}
+      cur.src = url; cur.dataset.for = url; cur.load();
+
+        sweepZombies();
+    }
+  }
+  armLoadWatch(entry);
+  App.infoDirty = true;
+  App.transportDirty = true;
+  {
+    const at = intentTakeSeek(entry);
+    if(at != null) setPlayerTime(at);
+  }
+  if(entry.intent && entry.intent.play){
+    const el = P();
+
+    if(el.readyState >= 1 || (isFinite(el.duration) && el.duration > 0)){
+      intentCancel(entry, "play");
+      play();
+    }
+  }
+  preloadNextEntry();
+}
+
+function sweepZombies(only){
+  const list = only ? [only] : App.songs.slice();
+  for(const entry of list){
+    if(!entry || !entry.zombie || !entry.zombie.length) continue;
+    entry.zombie = entry.zombie.filter(u => {
+      for(const el of AUDIO){ if(el.dataset.for === u) return true; }
+      try { URL.revokeObjectURL(u); } catch(e){}
+      return false;
+    });
+    if(!entry.zombie.length) delete entry.zombie;
+  }
+}
+
+function heldUrlsOf(entry){
+  const held = new Set();
+  if(!entry || !entry.variants) return held;
+  const urls = Object.values(entry.variants);
+  if(!urls.length) return held;
+  for(const el of AUDIO){
+    if(el.dataset.for && urls.indexOf(el.dataset.for) >= 0) held.add(el.dataset.for);
+  }
+  return held;
+}
+
+function releaseEntryElements(entry){
+  if(!entry) return;
+  const urls = [];
+  if(entry.variants) for(const k of Object.keys(entry.variants)) urls.push(entry.variants[k]);
+  if(entry.zombie) for(const u of entry.zombie) urls.push(u);
+  if(entry.audioUrl) urls.push(entry.audioUrl);
+  if(!urls.length) return;
+  for(const el of AUDIO){
+    if(!el.dataset.for || urls.indexOf(el.dataset.for) < 0) continue;
+    try { el.pause(); } catch(e){}
+    try { el.removeAttribute("src"); el.load(); } catch(e){}
+    delete el.dataset.for;
+  }
+}
+function urlInUse(entry){ return heldUrlsOf(entry).size > 0; }
+AudioHooks.held = heldUrlsOf;
+AudioHooks.sweep = sweepZombies;
+AudioHooks.release = releaseEntryElements;
+
+function markDirty(kind, atIn){
+  const e = curEntry(); if(!e) return;
+  const wasPlaying = App.playing;
+  const at = (atIn != null ? atIn : 0);
+  if(wasPlaying){ try { P().pause(); } catch(err){} }
+  if(kind === "bits"){
+
+    kickBits(e, {play: wasPlaying, seek: at});
+  } else {
+    e.dirty = true;
+    kickRender(e, {play: wasPlaying, seek: at});
+  }
+}
+
+on("autoplay", (entry) => { if(curEntry() === entry) play(); });
+
+on("variant", (entry, url) => {
+  if(curEntry() !== entry) return;
+  useVariant(entry, url);
+});
+
+function setPlayerTime(t){
+  const el = P();
+  try { el.currentTime = t; } catch(e){}
+  if(!isFinite(el.duration)){
+    el.addEventListener("loadedmetadata", () => {
+      try { el.currentTime = t; } catch(e){}
+    }, {once:true});
+  }
+}
+
+function songTimeNow(){ return P().currentTime || 0; }
+function songLength(){
+  if(isFinite(P().duration) && P().duration > 0) return P().duration;
+  const e = curEntry();
+  return e ? e.song.duration : 0;
+}
+
+AUDIO.forEach((el, idx) => {
+  el.volume = 0.7;
+  el.addEventListener("playing", () => { if(idx !== pidx) return; App.playing = true;  updateTransport(); updateMsState(); });
+  el.addEventListener("play",    () => { if(idx !== pidx) return; App.playing = true;  updateTransport(); updateMsState(); });
+  el.addEventListener("pause",   () => {
+    if(idx !== pidx) return;
+    App.playing = false; updateTransport(); updateMsState();
+
+    noteInterrupt();
+  });
+  el.addEventListener("timeupdate", () => { if(idx !== pidx) return; updatePositionState(); });
+  el.addEventListener("ended", () => {
+    if(idx !== pidx) return;
+    if($("chkLoop").checked){
+      try { el.currentTime = 0; el.play(); } catch(e){}
+      return;
+    }
+    if(App.cur >= 0 && App.cur < App.songs.length - 1){
+      selectSong(App.cur + 1, true);
+    } else {
+      App.playing = false; App.wantPlay = false;
+      updateTransport(); updateMsState();
+    }
+  });
+  el.addEventListener("canplay", () => {
+    if(idx !== pidx) return;
+    if(intentTakePlay(curEntry())) play();
+  });
+  el.addEventListener("loadedmetadata", () => {
+    if(idx !== pidx) return;
+    clearTimeout(App.loadWatch); App.loadWatch = null;
+    const e = curEntry();
+    const at = intentTakeSeek(e);
+    if(at != null){
+      try { el.currentTime = Math.max(0, Math.min(at, el.duration || at)); } catch(err){}
+    }
+    if(intentTakePlay(e)) play();
+    updateTransport(); updatePositionState();
+  });
+  el.addEventListener("error", () => {
+    if(idx !== pidx) return;
+    clearTimeout(App.loadWatch); App.loadWatch = null;
+    fallbackToDataUrl();
+  });
+});
+
+function resumeIfWanted(why){
+  if(!App.wantPlay) return;
+  if(curEntry() !== App.resumeKey) return;
+  if(document.hidden) return;
+  const el = P(); if(!el || !el.src) return;
+  if(el.ended) return;
+  const oc = window.__m8OutCtx;
+  if(oc && oc.state !== "running"){
+    try { const rp = oc.resume(); if(rp && rp.catch) rp.catch(()=>{}); } catch(e){}
+  }
+  if(!el.paused) return;
+  try { const p = el.play(); if(p && p.catch) p.catch(()=>{}); } catch(err){}
+}
+function noteInterrupt(){
+  if(!App.wantPlay) return;
+  App.resumeKey = curEntry();
+  App.interruptedAt = performance.now();
+}
+document.addEventListener("visibilitychange", () => { if(!document.hidden) resumeIfWanted(); });
+window.addEventListener("pageshow", () => resumeIfWanted());
+window.addEventListener("focus",    () => resumeIfWanted());
+window.addEventListener("online",   () => resumeIfWanted());
+
+document.addEventListener("pointerdown", () => {
+  const c = window.__m8OutCtx;
+  if(c && c.state !== "running" && !document.hidden){
+    try { const p = c.resume(); if(p && p.catch) p.catch(()=>{}); } catch(e){}
+  }
+}, true);
+AUDIO.forEach(el => {
+  el.addEventListener("webkitbegininterruption", () => noteInterrupt());
+  el.addEventListener("webkitendinterruption",  () => resumeIfWanted());
+});
+
+function silenceOthers(){
+  const act = P();
+  for(const el of AUDIO){
+    if(el === act) continue;
+    try { if(!el.paused) el.pause(); } catch(e){}
+    el.muted = true;
+  }
+  act.muted = false;
+}
+function preloadNextEntry(){
+  const nx = App.songs[App.cur + 1];
+  if(!nx || !nx.variants) return;
+  const url = nx.variants[String(App.crush)];
+  if(!url) return;
+  const idle = AUDIO[1 - pidx];
+  if(!idle.paused) return;
+  if(idle.dataset.for === url) return;
+  try {
+    idle.src = url;
+    idle.volume = P().volume;
+    idle.muted = true;
+    idle.dataset.for = url;
+    idle.load();
+    if(!idle.paused) idle.pause();
+  } catch(e){}
+}
+
+function armLoadWatch(entry){
+  clearTimeout(App.loadWatch);
+  const url = entry && entry.audioUrl;
+  App.loadWatch = setTimeout(async () => {
+    App.loadWatch = null;
+    if(!entry || curEntry() !== entry) return;
+    if(entry.audioUrl !== url) return;
+    if(P().dataset.for !== url) return;
+    if(P().readyState >= 1 || P().error) return;
+    if(document.hidden) return;
+
+    flashInfo("音频未就绪 · 改用内联数据重试…", 6000);
+    fallbackToDataUrl();
+  }, 4000);
+}
+function fallbackToDataUrl(){
+  const entry = curEntry();
+  if(!entry || entry.usedDataUrl) return;
+  if(!entry.blob){
+
+    console.warn("[回退] 变体尚未生成，无法用 data URL 回退：", entry.name);
+    flashInfo("音频加载失败：" + shortName(entry.name) + " 的成品还没生成", 5000);
+    return;
+  }
+  entry.usedDataUrl = true;
+  const fr = new FileReader();
+  fr.onload = () => {
+    if(curEntry() !== entry) return;
+    const el = P();
+    el.src = fr.result;
+
+    el.dataset.for = "data:";
+    el.load();
+    sweepZombies(entry);
+    if(App.playing || (entry.intent && entry.intent.play)){ intentCancel(entry, "play"); play(); }
+  };
+
+  fr.onerror = () => {
+
+    if(curEntry() === entry) intentCancel(entry, "play");
+    flashInfo("音频加载失败（data URL 回退也失败）", 8000);
+  };
+  fr.readAsDataURL(entry.blob);
+}
+
+const MS = { ok: ("mediaSession" in navigator) };
+
+function buildArtwork(song, name, cb){
+  try {
+    const S = 512, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    g.fillStyle = "#070907"; g.fillRect(0,0,S,S);
+    g.strokeStyle = "rgba(60,110,55,.35)"; g.lineWidth = 1;
+    for(let i=1;i<8;i++){ const x=S*i/8; g.beginPath(); g.moveTo(x,0); g.lineTo(x,S); g.stroke(); }
+    const pad = 34, areaH = 300, span = Math.max(1, song.hi - song.lo + 1);
+    const tS = (S - pad*2) / Math.max(0.001, song.duration);
+    const rowH = Math.max(1.5, Math.min(6, areaH/span));
+    for(const n of song.notes){
+      const x = pad + n.start*tS;
+      const w = Math.max(1.5, n.dur*tS - 0.6);
+      const y = pad + areaH - ((n.note - song.lo + 1)/span) * areaH;
+      g.fillStyle = CH_COLORS[n.ch % CH_COLORS.length];
+      g.fillRect(x, y, w, rowH);
+    }
+    g.fillStyle = "#6fe36f"; g.font = "bold 52px ui-monospace,Menlo,monospace";
+    g.fillText("MIDI8BIT", pad, S-84);
+    g.fillStyle = "#ffb000"; g.font = "26px ui-monospace,Menlo,monospace";
+    g.fillText((name||"").slice(0,26), pad, S-44);
+    g.fillStyle = "#4f7748"; g.font = "18px ui-monospace,Menlo,monospace";
+    g.fillText(song.noteCount + " NOTES · " + fmtTime(song.duration), pad, S-16);
+    g.strokeStyle = "#2b4a24"; g.lineWidth = 4; g.strokeRect(2,2,S-4,S-4);
+
+    cb(c.toDataURL("image/png"));
+  } catch(e){ cb(null); }
+}
+function setMsMetadata(){
+  if(!MS.ok) return;
+  const e = curEntry();
+  if(!e){ try { navigator.mediaSession.metadata = null; } catch(err){} return; }
+  const key = e.name + "|" + e.song.noteCount + "|" + Math.round(e.song.duration);
+  const apply = artUrl => {
+    const md = { title: e.name, artist: "MIDI8BIT", album: "8-bit MIDI Player" };
+    if(artUrl) md.artwork = [{ src: artUrl, sizes: "512x512", type: "image/png" }];
+    try { navigator.mediaSession.metadata = new MediaMetadata(md); } catch(err){}
+    updateMsBadge();
+  };
+  if(key === MS.curArtKey && MS.art){ apply(MS.art); return; }
+  MS.curArtKey = key;
+  buildArtwork(e.song, e.name, url => { MS.art = url; apply(url); });
+}
+function updateMsBadge(){
+  const el = $("msStatus"); if(!el) return;
+  if(!MS.ok){ el.textContent = "◌ 系统播放器：不支持"; return; }
+  let ok = true;
+  try { ok = !!navigator.mediaSession.metadata; } catch(e){ ok = false; }
+  el.textContent = ok ? "◉ 系统播放器：已连接（锁屏可控制）" : "◌ 系统播放器：未连接";
+  el.style.color = ok ? "#7fe36f" : "";
+}
+function updatePositionState(){
+  if(!MS.ok || !navigator.mediaSession.setPositionState) return;
+  const d = P().duration;
+  if(!isFinite(d) || d <= 0) return;
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: d, playbackRate: P().playbackRate || 1,
+      position: Math.max(0, Math.min(P().currentTime, d))
+    });
+  } catch(e){}
+}
+function updateMsState(){
+  if(!MS.ok) return;
+  try { navigator.mediaSession.playbackState = App.playing ? "playing" : (curEntry() ? "paused" : "none"); } catch(e){}
+  updatePositionState();
+  updateMsBadge();
+}
+function initMediaSession(){
+  if(!MS.ok){ updateMsBadge(); return; }
+  const H = (name, fn) => { try { navigator.mediaSession.setActionHandler(name, fn); } catch(e){} };
+  H("play",          () => play());
+  H("pause",         () => pause());
+  H("stop",          () => stop());
+  H("previoustrack", () => { if(App.cur > 0) selectSong(App.cur-1, true); else seek(0); });
+  H("nexttrack",     () => { if(App.cur < App.songs.length-1) selectSong(App.cur+1, true); });
+  H("seekbackward",  d => seek(songTimeNow() - ((d && d.seekOffset) || 5)));
+  H("seekforward",   d => seek(songTimeNow() + ((d && d.seekOffset) || 5)));
+  H("seekto",        d => { if(d && typeof d.seekTime === "number") seek(d.seekTime); });
+  setInterval(updatePositionState, 1000);
+}
+
+let selectToken = 0;
+function selectSong(i, autoplay){
+  if(i < 0 || i >= App.songs.length) return;
+  const token = ++selectToken;
+  try { P().pause(); } catch(e){}
+  App.cur = i;
+  const entry = App.songs[i];
+  intentSet(entry, { seekAt: null, play: !!autoplay });
+  updateTransport();
+
+  (async () => {
+    try {
+      if(!entry.master) await ensureMaster(entry);
+      if(token !== selectToken) return;
+      if(!entry.master){
+
+        if(autoplay) intentSet(entry, {play: true});
+        kickRender(entry);
+        return;
+      }
+      await kickBitsNow(entry, App.crush);
+      if(token !== selectToken) return;
+      if(curEntry() === entry && intentTakePlay(entry)) play();
+    } catch(e){}
+  })();
+  setTimeout(() => {
+    emit("ui-refresh"); updateTransport();
+    setMsMetadata();
+    updateMsState();
+    schedulePrerender();
+  }, 0);
+}
+function updateTransport(){
+  const e = curEntry();
+
+  $("btnPlay").innerHTML = (App.renderPct >= 0 && !(e && e.audioUrl))
+    ? "&#8943;"
+    : (App.playing ? "&#10074;&#10074;" : "&#9654;");
+  $("tTot").textContent = fmtTime(e ? (e.audioUrl ? (isFinite(P().duration) ? P().duration : e.song.duration) : e.song.duration) : 0);
+  if(!e){ App.infoText = "NOTHING LOADED"; if(!App.renderMsg) setInfoText(null); }
+}
+
+function paintInfoBar(){
+  const el = $("info"); if(!el) return;
+  if(App.renderMsg && App.renderMsgUntil && performance.now() > App.renderMsgUntil){
+    App.renderMsg = null; App.renderMsgUntil = 0;
+  }
+  const t = App.renderMsg || App.infoText || "";
+  if(el.textContent !== t) el.textContent = t;
+}
+function paintHud(){
+  const el = $("renderHud"), tx = $("renderHudTxt");
+  if(!el) return;
+  const h = App.hud;
+  if(!h){ if(el.style.display !== "none") el.style.display = "none"; return; }
+  if(el.style.display === "none") el.style.display = "block";
+  const d = h.done || 1, t = h.total || 0;
+  const p = (h.pct >= 0) ? h.pct : (t ? (d - 1) / t : 0);
+  const pc = Math.max(0, Math.min(100, Math.round(p * 100)));
+  const seg = t ? (" · " + d + "/" + t + " 块") : "";
+  const txt = h.name + seg + " · " + (h.sec > 0 ? Math.round(h.sec) + "s" : pc + "%");
+  if(tx && tx.textContent !== txt) tx.textContent = txt;
+}
+UIPaint.info = paintInfoBar;
+UIPaint.hud  = paintHud;
+
+function renderPlaylist(){
+  const box = $("playlist");
+  $("plCount").textContent = App.songs.length;
+  if(!App.songs.length){
+    box.innerHTML = '<div class="empty">拖入 .mid / .midi 文件<br>或点击「＋添加」</div>';
+    return;
+  }
+  box.innerHTML = "";
+  App.songs.forEach((s, i) => {
+    const el = document.createElement("div");
+    el.className = "pl-item" + (i === App.cur ? " on" : "");
+    el.dataset.i = String(i);
+    el.innerHTML = '<span class="ix">' + (i+1) + '</span><span class="rdy"></span><span class="nm">' + esc(s.name) +
+      '</span><span class="du">' + fmtTime(s.song.duration) + '</span><span class="del">&#215;</span>';
+    el.addEventListener("click", e => {
+      const tgt =  (e.target);
+      if(tgt.classList.contains("del")){
+        const dead = App.songs[i];
+        releaseEntryElements(dead);
+
+        dropVariants(dead);
+        App.songs.splice(i,1);
+        if(App.cur === i){ App.cur = -1; App.playing = false; renderChannels(); buildRoll(); updateMsState(); }
+        else if(App.cur > i) App.cur--;
+        renderPlaylist(); updateTransport();
+        return;
+      }
+      if(i !== App.cur) selectSong(i, true);
+      else togglePlay();
+    });
+    box.appendChild(el);
+  });
+  updatePlaylistBadges();
+}
+
+async function clearAllCache(){
+  ++renderJob; ++bitsJob; ++selectToken;
+  App.renderingEntry = null;
+  setInfoText("正在清空缓存…");
+  let why = "";
+  try {
+
+    await idbQueue;
+    const db = await openDB();
+    if(!db) why = "打不开数据库";
+    else await new Promise(res => {
+      let done = false;
+      const fin = w => { if(!done){ done = true; if(w) why = w; res(); } };
+      try {
+        const tx = db.transaction(CACHE_STORE, "readwrite");
+        tx.objectStore(CACHE_STORE).clear();
+        tx.oncomplete = () => fin("");
+        tx.onerror   = () => fin("事务失败（" + ((tx.error && tx.error.name) || "未知") + "）");
+        tx.onabort   = () => fin("事务中止（" + ((tx.error && tx.error.name) || "配额或系统回收") + "）");
+        setTimeout(() => fin("6 秒未完成，存储可能已不可用"), 6000);
+      } catch(e){ fin("clear 抛错（" + ((e && e.name) || e) + "）"); }
+    });
+  } catch(e){
+    why = "异常（" + ((e && e.name) || e) + "）";
+  }
+  const keepCur = curEntry();
+  for(const e of App.songs){
+    if(e === keepCur){
+      e.ready = false;
+      continue;
+    }
+    e.master = null; e.dirty = true;
+    dropVariants(e); e.audioUrl = null;
+  }
+  RENDERED.clear();
+  publishIndex([]);
+  App.cacheEpoch = (App.cacheEpoch || 0) + 1;
+  renderPlaylist();
+  updatePlaylistBadges();
+  flashInfo(why ? ("清缓存未完成：" + why) : "缓存已清空", 9000);
+  schedulePrerender();
+}
+function updatePlaylistBadges(){
+  const items = document.querySelectorAll("#playlist .pl-item");
+  for(let i=0;i<items.length;i++){
+    const el =  (items[i]);
+    const e = App.songs[+el.dataset.i];
+    if(e){
+
+      el.classList.toggle("ready", !!e.ready);
+    }
+  }
+  const t = document.querySelector("#left .pane-title .grow");
+  if(t){
+    if(App.songs.length <= 1) t.textContent = "";
+  }
+}
+
+on("badges", () => updatePlaylistBadges());
+on("ui-refresh", () => { renderPlaylist(); renderChannels(); buildRoll(); });
+on("redraw", () => { lastDraw = 0; });
+
+function renderChannels(){
+  const box = $("channels");
+  const song = curSong();
+  if(!song){ box.innerHTML = '<span class="empty" style="padding:8px">未加载文件</span>'; return; }
+  box.innerHTML = "";
+  song.channels.forEach(c => {
+    const el = document.createElement("div");
+    el.className = "ch-chip" + (song.mute[c.ch] ? " mute" : "");
+    el.dataset.ch = c.ch;
+    el.innerHTML = '<b>CH' + String(c.ch+1).padStart(2,"0") + '</b>' +
+      '<span title="' + esc(c.name) + '">' + esc(c.name.length > 16 ? c.name.slice(0,15)+"…" : c.name) + '</span>';
+    const sel = document.createElement("select");
+    WAVE_LABELS.forEach(([v, label]) => {
+      const o = document.createElement("option");
+      o.value = v;
+      o.textContent = c.ch === 9
+        ? (v === "auto" ? "自动(鼓)" : label)
+        : (v === "auto" ? "自动·" + (WAVE_SHORT[autoWave(c.prog)] || "?") : label);
+      if((song.wave[c.ch] || "auto") === v) o.selected = true;
+      sel.appendChild(o);
+    });
+    if(c.ch === 9){
+      sel.disabled = true;
+    }
+    sel.addEventListener("change", () => { song.wave[c.ch] = sel.value; markDirty("wave", songTimeNow()); });
+    el.appendChild(sel);
+    if(c.ch !== 9){
+      const b = document.createElement("button");
+      b.textContent = song.mute[c.ch] ? "MUTE" : "ON";
+      if(song.mute[c.ch]) b.classList.add("on");
+      b.addEventListener("click", () => {
+        song.mute[c.ch] = !song.mute[c.ch];
+        renderChannels();
+        markDirty("mute", songTimeNow());
+      });
+      el.appendChild(b);
+    }
+    box.appendChild(el);
+  });
+}
+
+function buildRoll(){
+  const song = curSong();
+  const cv = $("roll");
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  rollW = cv.clientWidth; rollH = cv.clientHeight;
+  cv.width = Math.max(1, Math.round(rollW * dpr));
+  cv.height = Math.max(1, Math.round(rollH * dpr));
+  if(!song){ rollBuf = null; return; }
+  const off = document.createElement("canvas");
+  off.width = cv.width; off.height = cv.height;
+  const g = off.getContext("2d");
+  g.scale(dpr, dpr);
+  g.fillStyle = "#040704"; g.fillRect(0,0,rollW,rollH);
+
+  g.strokeStyle = "rgba(60,110,55,.22)"; g.lineWidth = 1;
+  for(let i=1;i<8;i++){ const x = rollW*i/8; g.beginPath(); g.moveTo(x,0); g.lineTo(x,rollH); g.stroke(); }
+  for(let i=1;i<4;i++){ const y = rollH*i/4; g.beginPath(); g.moveTo(0,y); g.lineTo(rollW,y); g.stroke(); }
+
+  const span = Math.max(1, song.hi - song.lo + 1);
+  const pad = 4, usable = rollH - pad*2;
+  const tScale = rollW / Math.max(0.001, song.duration);
+  const rowH = Math.max(1.5, Math.min(6, usable / span));
+  g.globalAlpha = 0.95;
+  for(const n of song.notes){
+    const x = n.start * tScale;
+    const w = Math.max(1, n.dur * tScale - 0.6);
+    const y = pad + usable - ((n.note - song.lo + 1) / span) * usable;
+    g.fillStyle = CH_COLORS[n.ch % CH_COLORS.length];
+    g.fillRect(x, y, w, rowH);
+  }
+  g.globalAlpha = 1;
+  rollBuf = off;
+}
+function drawRoll(){
+  const cv = $("roll"), g = cv.getContext("2d");
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const now = performance.now();
+  if(now - lastRollCheck > 250){
+    lastRollCheck = now;
+    if(cv.clientWidth !== rollW || cv.clientHeight !== rollH){ buildRoll(); }
+  }
+  g.setTransform(1,0,0,1,0,0);
+  g.clearRect(0,0,cv.width,cv.height);
+  const song = curSong();
+  if(!rollBuf || !song) return;
+  g.drawImage(rollBuf, 0, 0);
+
+  const f = song.duration > 0 ? Math.max(0, Math.min(1, songTimeNow() / song.duration)) : 0;
+  const x = f * rollW * dpr;
+  g.fillStyle = "#e9ffd0";
+  g.fillRect(x - dpr*0.5, 0, Math.max(1,dpr), cv.height);
+  g.fillStyle = "rgba(157,255,157,.18)";
+  g.fillRect(x, 0, 10*dpr, cv.height);
+}
+
+function drawScope(){
+  const cv = $("scope"); if(!cv) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth, h = cv.clientHeight;
+
+  if(!(w > 0) || !(h > 0)) return;
+  const g = cv.getContext("2d"); if(!g) return;
+
+  try {
+    const bw = Math.round(w*dpr), bh = Math.round(h*dpr);
+    if(cv.width !== bw || cv.height !== bh){ cv.width = bw; cv.height = bh; }
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.shadowBlur = 0;
+    g.fillStyle = "#040704"; g.fillRect(0,0,w,h);
+
+    g.strokeStyle = "rgba(60,110,55,.25)"; g.lineWidth = 1;
+    for(let i=1;i<8;i++){ const x = w*i/8; g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke(); }
+    for(let i=1;i<4;i++){ const y = h*i/4; g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
+
+    const e = curEntry();
+    const buf = e && e.scopeBuf;
+    let peak = 0;
+    let drew = false;
+
+    const span = Math.min(SCOPE_SPAN, Math.floor(((buf && buf.length) || 0) - 2));
+    if(buf && span > 8){
+      const sr = e.scopeRate || 11025;
+      const t = songTimeNow();
+      let start = Math.floor((isFinite(t) ? t : 0) * sr);
+      if(!isFinite(start) || start < 0) start = 0;
+
+      let trig = Math.min(start, Math.max(0, buf.length - span - 1));
+      const lim = Math.min(buf.length - span - 1, start + Math.round(sr * 0.15));
+      for(let i = start; i < lim; i++){
+
+        if(i > 0 && buf[i-1] < 0 && buf[i] >= 0){ trig = i; break; }
+      }
+      trig = Math.max(0, Math.min(trig, buf.length - span - 1));
+
+      for(let i=0;i<span;i++){
+        const raw = buf[trig + i];
+        const v = (typeof raw === "number" && isFinite(raw)) ? raw / 32768 : 0;
+        const a = v < 0 ? -v : v;
+        if(a > peak) peak = a;
+      }
+      const gain = (peak > 1e-4) ? Math.min(4, Math.max(1, 0.92 / peak)) : 1;
+
+      g.lineWidth = 1.6;
+      g.strokeStyle = "#6fe36f";
+      g.beginPath();
+      for(let i=0;i<span;i++){
+        const raw = buf[trig + i];
+        const v0 = (typeof raw === "number" && isFinite(raw)) ? raw / 32768 : 0;
+        const v = Math.max(-1, Math.min(1, v0 * gain));
+        const x = i / span * w;
+        const y = h/2 - v * (h/2 - 5);
+        if(!isFinite(x) || !isFinite(y)) continue;
+        if(i === 0) g.moveTo(x,y); else g.lineTo(x,y);
+      }
+      g.lineWidth = 4.5; g.strokeStyle = "rgba(110,230,110,.20)";
+      g.stroke();
+      g.lineWidth = 1.6; g.strokeStyle = "#6fe36f";
+      g.stroke();
+      drew = true;
+    }
+
+    if(!drew){
+      g.lineWidth = 1.4; g.strokeStyle = "#2b4a24";
+      g.beginPath(); g.moveTo(0, h/2); g.lineTo(w, h/2); g.stroke();
+    }
+
+    const pct = isFinite(peak) ? Math.round(peak*100) : 0;
+    g.fillStyle = "#ffb000"; g.font = "10px ui-monospace,Menlo,monospace";
+    g.fillText("PEAK " + String(pct).padStart(3," ") + "%", 7, 12);
+    g.fillStyle = peak > 0.95 ? "#ff6b6b" : "#4f7748";
+    g.fillText("44.1k", 7, h-6);
+  } catch(err){
+
+    try { g.setTransform(1,0,0,1,0,0); g.shadowBlur = 0; g.globalAlpha = 1;
+          cv.width = cv.width || 1; g.fillStyle = "#040704"; g.fillRect(0,0,cv.width,cv.height);
+    } catch(_){}
+    console.warn("[示波器] 绘制异常", err);
+  }
+}
+
+let lastPct = -1, lastTimeStr = "";
+
+let rollBuf = null, rollW = 0, rollH = 0;
+let lastSweep = 0, lastTitle = 0;
+let rzT = null;
+
+let lastDraw = 0, lastRollCheck = 0;
+function tick(){
+  requestAnimationFrame(tick);
+
+  const now = performance.now();
+  if(now - lastSweep > 500){
+    lastSweep = now;
+    const act = P();
+    for(const el of AUDIO){
+      if(el === act) continue;
+      if(!el.paused) { try { el.pause(); } catch(e){} }
+      if(!el.muted) el.muted = true;
+    }
+    if(act.muted) act.muted = false;
+  }
+  const e = curEntry();
+  const t = songTimeNow();
+  const dur = songLength();
+  const f = dur ? Math.min(1, t/dur) : 0;
+
+  const pct = f * 100;
+  if(Math.abs(pct - lastPct) > 0.03){
+    lastPct = pct;
+    $("seekFill").style.width = pct + "%";
+    $("seekHead").style.left = "calc(" + pct + "% - 1px)";
+  }
+  const tStr = fmtTime(t);
+  if(tStr !== lastTimeStr){ lastTimeStr = tStr; $("tCur").textContent = tStr; }
+
+  if(App.transportDirty){ App.transportDirty = false; updateTransport(); }
+  if(App.infoDirty){ App.infoDirty = false; updateInfo(); }
+  paintInfoBar();
+  paintHud();
+
+  if(now - lastTitle > 1000){
+    lastTitle = now;
+    const tt = document.querySelector("#left .pane-title .grow");
+    if(tt && App.songs.length > 1){
+      const rd = App.songs.filter(x => x.ready).length;
+      const busy = prerun || !!pickPrerenderTarget();
+      const txt = rd + "/" + App.songs.length + " 已缓存" + (busy ? " · 预处理中…" : "");
+      if(tt.textContent !== txt) tt.textContent = txt;
+    }
+  }
+  const playingNow = App.playing && !P().paused;
+  if(playingNow ? (now - lastDraw > 33) : (lastDraw !== -1)){
+    lastDraw = playingNow ? now : -1;
+    drawScope();
+    drawRoll();
+  }
+
+  if(e && e.activity){
+    const {grid, res, n} = e.activity;
+    const idx = Math.min(n-1, Math.floor(t * res));
+    const mask = grid[idx] | 0;
+    const chips = $("channels").children;
+    for(let i=0;i<chips.length;i++){
+      const c = chips[i], ch = +c.dataset.ch;
+      const on = !!(mask & (1 << ch));
+      if(on !== c.classList.contains("act")) c.classList.toggle("act", on);
+    }
+  }
+}
+
+function registerSong(buffer, name){
+  const song = parseMidi(buffer);
+  song.wave = {}; song.mute = {};
+  song.channels.forEach(c => { song.wave[c.ch] = "auto"; song.mute[c.ch] = false; });
+  if(song.wave) song.wave[9] = "drum";
+
+  song.srcHash = buffer.byteLength + ":" + quickHash(buffer);
+  App.songs.push({name, song});
+  return App.songs.length - 1;
+}
+
+function sortSongsByName(){
+  if(App.songs.length < 2) return;
+  const cur = curEntry();
+  const cmpName = a => String(a && a.name || "");
+  App.songs.sort((a, b) => {
+    const x = cmpName(a), y = cmpName(b);
+    const r = x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" });
+    return r !== 0 ? r : (x < y ? -1 : (x > y ? 1 : 0));
+  });
+  if(cur){ const i = App.songs.indexOf(cur); if(i >= 0) App.cur = i; }
+}
+function refreshAll(selectNew){
+  if(selectNew && App.cur < 0) App.cur = 0;
+  renderPlaylist(); renderChannels(); buildRoll(); updateTransport(); updateInfo();
+  setMsMetadata();
+  updateMsState();
+  updatePlaylistBadges();
+  const e = curEntry();
+  if(e && (!e.master || e.dirty)) kickRender(e, {});
+  schedulePrerender();
+}
+function loadFromUrl(url, displayName){
+  return fetch(url, {cache:"no-store"})
+    .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); })
+    .then(buf => {
+      const rawBase = url.split("/").pop();
+      let base = rawBase;
+      try { base = decodeURIComponent(rawBase); } catch(e){}
+      const name = displayName || base.replace(/\.[^.]+$/, "");
+      const i = registerSong(buf, name);
+      refreshAll(true);
+      return i;
+    });
+}
+function addFiles(files){
+  const list = [...files].filter(f => /\.(mid|midi|kar|rmi)$/i.test(f.name) || /midi/i.test(f.type));
+  if(!list.length){ flashInfo("没有找到 .mid / .midi 文件", 8000); return; }
+  let pending = list.length;
+  const done = () => {
+    if(--pending === 0){ sortSongsByName(); refreshAll(true); }
+  };
+  list.forEach(f => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        registerSong(fr.result, f.name.replace(/\.(mid|midi|kar|rmi)$/i,""));
+        done();
+      } catch(err){
+
+        const msg = String(err && err.message || err);
+        flashInfo("解析失败: " + f.name + "\n" +
+              (/Out of bounds/.test(msg)
+                ? "文件数据不完整，或不是标准 MIDI（轨道内部声明的长度与实际内容不符）"
+                : msg), 8000);
+        done();
+      }
+    };
+    fr.onerror = () => { flashInfo("读取失败: " + f.name, 8000); done(); };
+    fr.readAsArrayBuffer(f);
+  });
+}
+
+function updateInfo(){
+  const song = curSong(); if(!song) return;
+  const firstTempo = (song.tempos && song.tempos.length > 1) ? song.tempos[1].us : 500000;
+  const bpm = Math.round(60000000 / firstTempo * 10) / 10;
+  App.infoText = "FMT" + song.format + " · " + song.ntrks + "TRK · " +
+    song.noteCount + " NOTES · " + song.ppq + "PPQ · " + bpm + " BPM";
+  if(!App.renderMsg){ const el = $("info"); if(el && el.textContent !== App.infoText) el.textContent = App.infoText; }
+}
+
+$("btnPlay").addEventListener("click", () => { togglePlay(); });
+$("btnStop").addEventListener("click", stop);
+$("btnPrev").addEventListener("click", () => { if(App.cur > 0) selectSong(App.cur-1, true); else seek(0); });
+$("btnNext").addEventListener("click", () => { if(App.cur < App.songs.length-1) selectSong(App.cur+1, true); });
+
+let clearArmT = -Infinity;
+
+$("btnClearCache").addEventListener("click", () => {
+  if(performance.now() - clearArmT > 4000){
+    clearArmT = performance.now();
+    flashInfo("再点一次「清缓存」确认清空", 4000);
+    return;
+  }
+  clearArmT = -Infinity;
+clearAllCache().catch(err => flashInfo("清缓存异常：" + ((err && err.message) || err), 9000));
+});
+$("selCrush").addEventListener("change", e => {
+  App.crush = +e.target.value;
+  markDirty("bits", songTimeNow());
+});
+$("volume").addEventListener("input", e => { P().volume = e.target.value/100; });
+
+$("seekWrap").addEventListener("pointerdown", e => {
+  const song = curSong(); if(!song) return;
+  const wrap = e.currentTarget;
+  const r = wrap.getBoundingClientRect();
+  const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  seek(f * songLength());
+  const move = ev => {
+    const r2 = wrap.getBoundingClientRect();
+    const f2 = Math.max(0, Math.min(1, (ev.clientX - r2.left) / r2.width));
+    seek(f2 * songLength());
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+
+  window.addEventListener("pointercancel", up);
+});
+
+$("fileInput").addEventListener("change", e => { addFiles(e.target.files); e.target.value = ""; });
+
+const dropEl = $("drop");
+["dragenter","dragover"].forEach(t => document.addEventListener(t, e => {
+  e.preventDefault(); dropEl.classList.add("show");
+}));
+["dragleave","drop"].forEach(t => document.addEventListener(t, e => {
+  e.preventDefault();
+  if(t === "dragleave" &&  (e).relatedTarget) return;
+  dropEl.classList.remove("show");
+}));
+document.addEventListener("drop", e => {
+  if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+});
+
+document.addEventListener("keydown", e => {
+  const tg =  (e.target).tagName;
+
+  if(tg === "SELECT" || tg === "TEXTAREA") return;
+  if(tg === "INPUT" &&  (e.target).type !== "range") return;
+  if(e.code === "Space"){ e.preventDefault(); togglePlay(); }
+  else if(e.code === "ArrowLeft"){ seek(songTimeNow() - 5); }
+  else if(e.code === "ArrowRight"){ seek(songTimeNow() + 5); }
+  else if(e.code === "ArrowUp"){ e.preventDefault(); const v = Math.min(100,+$("volume").value+5); $("volume").value = v; P().volume = v/100; }
+  else if(e.code === "ArrowDown"){ e.preventDefault(); const v = Math.max(0,+$("volume").value-5); $("volume").value = v; P().volume = v/100; }
+});
+
+window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(buildRoll, 150); });
+
+P().volume = 0.7;
+loadIdbIndex().then(tidyCacheAtStartup);
+renderPlaylist();
+renderChannels();
+buildRoll();
+updateTransport();
+initMediaSession();
+requestAnimationFrame(tick);
+
+fetch("playlist.json", {cache:"no-store"})
+  .then(r => r.ok ? r.json() : null)
+  .then(list => {
+    if(!Array.isArray(list) || !list.length) return;
+     let chain = Promise.resolve();
+    list.forEach(item => {
+      const url = typeof item === "string" ? item : item.file;
+      const name = typeof item === "string" ? undefined : item.name;
+      if(!url) return;
+      chain = chain.then(() => loadFromUrl(url, name)).catch(e => console.warn("跳过 " + url + ": " + e.message));
+    });
+    return chain.then(() => { sortSongsByName(); refreshAll(App.cur < 0); });
+  })
+  .catch(() => {});
+
+addEventListener("pointerdown", ev => {
+  const t =  (ev.target);
+  if(t && t.closest && t.closest("input, select, textarea")) return;
+  const a =  (document.activeElement);
+  if(a && a !== document.body && typeof a.blur === "function") a.blur();
+}, true);
+
+window.MIDI8 = {parseMidi, App, autoWave, GM_NAMES, selectSong, play, pause, stop, seek, addFiles,
+                get PLAYER(){ return P(); }, AUDIO, renderMaster, startRender, kickRender, kickBits, markDirty, ChipEngine,
+                curEntry, songLength, ensureMaster, evictCache, tidyCacheAtStartup, clearAllCache, makeVariant, generateVariant, schedulePrerender,
+                publishIndex, checkCacheInvariant, sortSongsByName, verifyCacheAgainstDisk, idbDelOk, adoptOrReapOrphans, idbGetOk,
+                redraw: function(){ drawScope(); drawRoll(); }, rebuildRoll: buildRoll, songTimeNow,
+                ms: { setMetadata: setMsMetadata, update: updateMsState, state: () => MS,
+                      metadata: () => { try { return navigator.mediaSession.metadata; } catch(e){ return null; } } }};
+</script>
+</body>
+</html>
