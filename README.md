@@ -3,6 +3,8 @@
 在浏览器里把 MIDI 用芯片音色（方波 / 脉冲 / 三角 / 噪声 + 鼓机）播放出来，
 带示波器、音符卷帘和播放列表。**单文件、零依赖、纯离线**。
 
+**在线版 → [logic922.github.io/MIDI8BIT](https://logic922.github.io/MIDI8BIT/)**
+
 ## 打开
 
 直接打开 [index.html](index.html) 即可。
@@ -17,7 +19,7 @@
 
 ## 装到桌面（PWA）
 
-用 GitHub Pages 托管时（`https://logic922.github.io/MIDI8BIT/`），本目录带完整的
+用 GitHub Pages 托管时（[logic922.github.io/MIDI8BIT](https://logic922.github.io/MIDI8BIT/)），本目录带完整的
 `manifest.webmanifest` + `service-worker.js`，可以当应用装：
 
 - **iOS Safari**：分享 → 添加到主屏幕。之后是全屏独立窗口，断网也能开。
