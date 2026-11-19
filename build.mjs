@@ -4,6 +4,7 @@
    交付物仍是单文件零依赖：iOS 上直接打开 index.html 即可，不需要构建。 */
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname);
 const SRC = path.join(ROOT, "src");
@@ -84,6 +85,20 @@ try { new Function(js); } catch (e) {
 }
 const out = head + js + tail;
 
+/* ---- PWA：service-worker.js 由 src/service-worker.js 模板生成 ----
+   版本号取产物哈希，因此「产物一变→SW 一变→浏览器装新 SW→清旧缓存」。
+   直接手改根目录的 service-worker.js 会在下次 build 时被覆盖。 */
+const BUILD_ID = createHash("sha1").update(out).digest("hex").slice(0, 10);
+const SW_TPL = path.join(SRC, "service-worker.js");
+const SW_OUT = path.join(ROOT, "service-worker.js");
+const swTpl = fs.readFileSync(SW_TPL, "utf8");
+if (!swTpl.includes("__BUILD_ID__")) {
+  console.error("✗ src/service-worker.js 缺少 __BUILD_ID__ 占位符");
+  process.exit(1);
+}
+const swOut = swTpl.replace(/__BUILD_ID__/g, BUILD_ID);
+const swCur = fs.existsSync(SW_OUT) ? fs.readFileSync(SW_OUT, "utf8") : "";
+
 /* ---- 顺带同步 ARCHITECTURE.md 的「行」列 ----
    那张表的行数以前靠手填，改几次代码就全过期（06-store 写 845、实际 735 这种）。
    现在构建时顺手按真实行数改写；--check 时把差异报出来并要求重新 build。 */
@@ -113,6 +128,8 @@ if (check) {
   let bad = false;
   if (cur === out) { console.log("✓ index.html 与 src/ 一致 (" + files.length + " 个模块, " + out.length + " chars)"); }
   else { console.error("✗ index.html 与 src/ 不一致 —— 需要重新 build"); bad = true; }
+  if (swCur === swOut) { console.log("✓ service-worker.js 与产物哈希一致 (build " + BUILD_ID + ")"); }
+  else { console.error("✗ service-worker.js 与模板/产物不一致 —— 需要重新 build"); bad = true; }
   if (arch.stale.length) {
     console.error("✗ ARCHITECTURE.md 行数过期：" + arch.stale.join("，") + " —— 跑 node build.mjs 同步");
     bad = true;
@@ -124,6 +141,10 @@ if (check) {
   fs.writeFileSync(OUT, out);
   console.log("✓ 已生成 index.html: " + files.length + " 个模块, " + out.length + " chars");
   console.log("  " + files.join("  "));
+  if (swCur !== swOut) {
+    fs.writeFileSync(SW_OUT, swOut);
+    console.log("✓ 已生成 service-worker.js (build " + BUILD_ID + ")");
+  }
   if (arch.text != null && arch.text !== arch.before) {
     fs.writeFileSync(ARCH, arch.text);
     console.log("✓ 已同步 ARCHITECTURE.md 行数：" + (arch.stale.length || "无变化"));
