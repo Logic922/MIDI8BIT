@@ -1936,7 +1936,8 @@ function estMasterBytes(song){
 function pickPrerenderTarget(){
   if(App.cur < 0) return null;
   const used = (IDB_IDX || []).reduce((a, x) => a + (x.b || 0), 0);
-  const end = App.songs.length;
+
+  const end = Math.min(App.songs.length, App.cur + 1 + PRERENDER_AHEAD);
   for(let i = App.cur + 1; i < end; i++){
     const e = App.songs[i];
 
@@ -2886,8 +2887,10 @@ function tick(){
       if(tt.textContent !== txt) tt.textContent = txt;
     }
   }
-  const playingNow = App.playing && !P().paused;
-  if(playingNow ? (now - lastDraw > 33) : (lastDraw !== -1)){
+
+  const el = P();
+  const playingNow = !!el && !el.paused && !el.ended;
+  if(playingNow || (lastDraw !== -1)){
     lastDraw = playingNow ? now : -1;
     drawScope();
     drawRoll();

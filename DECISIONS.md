@@ -2856,3 +2856,27 @@ duration = 1.00s（本应各 0.5s / 1.0s）
    `OfflineAudioContext`（不是 `suspend()`），`currentTime` 恒为 0，这行是死代码、无害。
 3. **format 2 合并播放**：README 明写是有意取舍（见上面的 tempo 串台条目）。
    新增的只是"已知限制"里的一句提示。
+
+---
+
+## 第三轮修复：用户报「模块化后示波器卡顿 / 复杂曲目播放掉帧」（2026-11-19）
+
+对照 `midi8bit_old/index.html`（模块化前的单文件版）逐行 diff 后确认**两处回归**，
+其余差异都是老版本更重（老版每帧无条件写 `seekFill.style.width`、`tCur.textContent`
+并多跑一遍峰值循环，新版反而更省）：
+
+| 文件 | 回归 | 修法 |
+|---|---|---|
+| `09-ui.js` | 主循环加了 `now - lastDraw > 33` 的重绘门限（≈30fps），且判定依赖 `App.playing`。复杂曲目下 rAF 本身已不满 60，门限把间隔抖成 33/50ms，观感就是掉帧；`App.playing` 靠 `play/playing` 事件维护，漏置时波形会永久冻在上一帧 | 播放中每帧绘制（跟 rAF 走）；暂停/停止只补画最后一帧；判定改用 `<audio>` 元素真实状态 `!paused && !ended` |
+| `07-prerender.js` | `pickPrerenderTarget` 丢了 `end = min(len, cur + 1 + PRERENDER_AHEAD)`，被改成"一路渲到列表末尾"，只剩 `CACHE_BYTES` 兜底 → 播放期间后台会一首接一首地渲，`startRendering()` + Int16 转换都是不可分割的长任务，直接砸掉帧 | 恢复前瞻上限（`PRERENDER_AHEAD = 4`） |
+
+**现场特征**：用户报"卡的时候右下角正好在预渲染"—— 后台预渲染与掉帧时间点重合，
+但老版同样会在播放时预渲染且不卡，所以**主因是 30fps 门限**，预渲染是无上限化后
+的放大器。两处一起修。
+
+**顺带修**：`test/batch_parse.js` 还在读 `index.html` 抽 `[PARSE-BEGIN]` 段，而产物会
+剥注释 → 该脚本从模块化起就一直 `FATAL`。改为跟 `parse_test.js` 一样读 `src/02-midi.js`。
+
+**验证**：`node build.mjs --check` 一致；`parse_test` 17 PASS / 3 SKIP、`unit_test` 72 PASS；
+浏览器加载无语法错误，`pickPrerenderTarget` 运行时源码已含上限，
+`tick` 闸门为 `playingNow || (lastDraw !== -1)`。

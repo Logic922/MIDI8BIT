@@ -373,8 +373,15 @@ function tick(){
       if(tt.textContent !== txt) tt.textContent = txt;
     }
   }
-  const playingNow = App.playing && !P().paused;
-  if(playingNow ? (now - lastDraw > 33) : (lastDraw !== -1)){
+  // ★ 播放中每帧都画（跟 rAF 走，60fps）。以前这里有个 33ms 门限（≈30fps），
+  //   本意是省性能，实际在复杂曲目上（rAF 本身已不满 60）会把间隔抖成 33/50ms，
+  //   观感就是"掉帧"。绘制本身很轻：900 点路径 + 一次整幅 drawImage。
+  //   暂停/停止时只补画最后一帧（lastDraw 归位 -1 后不再重画）。
+  //   ★ 判定用 <audio> 元素的真实状态，不只看 App.playing —— 后者靠事件维护，
+  //     漏置时波形会永久冻在上一帧。
+  const el = P();
+  const playingNow = !!el && !el.paused && !el.ended;
+  if(playingNow || (lastDraw !== -1)){
     lastDraw = playingNow ? now : -1;
     drawScope();
     drawRoll();

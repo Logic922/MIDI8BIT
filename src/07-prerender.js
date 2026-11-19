@@ -23,7 +23,11 @@ function estMasterBytes(song){
 function pickPrerenderTarget(){
   if(App.cur < 0) return null;
   const used = (IDB_IDX || []).reduce((a, x) => a + (x.b || 0), 0);
-  const end = App.songs.length;
+  // ★ 前瞻上限必须保留：早期版本只备往后 PRERENDER_AHEAD 首就停。模块化时这里
+  //   被改成"一路渲到列表末尾"，只剩字节预算兜底 —— 列表一大，播放期间后台会
+  //   一首接一首地渲，startRendering 每次都是不可分割的长任务，直接把播放中的
+  //   画面帧率拖下去（用户实测：复杂曲目播放掉帧，右下角正好在预渲染）。
+  const end = Math.min(App.songs.length, App.cur + 1 + PRERENDER_AHEAD);
   for(let i = App.cur + 1; i < end; i++){
     const e = App.songs[i];
     // ready = 磁盘上有（绿灯）；RENDERED = 本次会话渲过（别再渲）

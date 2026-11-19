@@ -16,7 +16,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+/* ★ 从源码抽解析器段：构建产物 index.html 会把注释剥掉，[PARSE-BEGIN] 标记不在里面了
+   （跟 parse_test.js 保持一致的做法）。 */
+const html = fs.readFileSync(path.join(ROOT, 'src', '02-midi.js'), 'utf8');
 const ia = html.indexOf('[PARSE-BEGIN]'), ib = html.indexOf('[PARSE-END]');
 if (ia < 0 || ib < 0) { console.error('FATAL: 找不到 PARSE 标记'); process.exit(1); }
 const src = html.slice(html.lastIndexOf('/*', ia), html.indexOf('*/', ib) + 2);
