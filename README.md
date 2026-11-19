@@ -15,6 +15,18 @@
 不想拷贝源码的话，可以到 [Releases](../../releases) 下载单文件 **`midi8bit.html`**，
 改名不影响使用，丢进任何 WebView 都能直接跑。
 
+## 装到桌面（PWA）
+
+用 GitHub Pages 托管时（`https://logic922.github.io/MIDI8BIT/`），本目录带完整的
+`manifest.webmanifest` + `service-worker.js`，可以当应用装：
+
+- **iOS Safari**：分享 → 添加到主屏幕。之后是全屏独立窗口，断网也能开。
+- **Android Chrome / 桌面 Chrome**：地址栏右侧出现「安装」。
+
+`service-worker.js` 的缓存名带构建哈希（由 `build.mjs` 注入），所以重新构建后
+浏览器会自动装新 SW 并清掉旧缓存 —— **不要手改**这个文件。单文件离线副本
+（`file://` 直接打开）不注册 SW，行为与以前一致。
+
 ## 加载你自己的 MIDI
 三种方式，任选：
 
@@ -225,8 +237,11 @@ Tempo map（曲中变速）、CC7 音量 / CC10 声像 / CC11 表情 / CC64 延�
   这是有意为之的取舍，遇到这类文件请自行另存为 format 0/1。
 
 ## 文件
-- `index.html` —— **构建产物**，也是唯一的运行入口（HTML + CSS + JS 全内联，仍是单文件零依赖；**构建时剥离全部注释**，约 113KB）
-- `src/` —— 源码，按依赖分区拆成 11 个模块（`01-config` … `10-boot`）；改动后跑 `node build.mjs`
+- `index.html` —— **构建产物**，也是唯一的运行入口（HTML + CSS + JS 全内联，仍是单文件零依赖；**构建时剥离全部注释**，约 114KB）
+- `src/` —— 源码，按依赖分区拆成 12 个模块（`01-config` … `11-pwa`）；改动后跑 `node build.mjs`
+- `service-worker.js` —— **构建产物**（由 `src/service-worker.js` 模板 + 产物哈希生成），别手改
+- `manifest.webmanifest` / `icon-192.png` / `icon-512.png` / `icon-180.png` / `apple-touch-icon*.png` / `favicon.ico` —— PWA 清单与图标
+- `offline.html` —— 离线回退页（第一次访问前断网时显示）
 - `ARCHITECTURE.md` —— 分层、依赖矩阵、状态归属、已知的双向依赖
 - `DECISIONS.md` —— 从代码里迁出的历史注释（按文件分组，338 段；「原第 N 行」是迁移当时的快照，
   不随代码更新，读的时候以文件名和内容为准）+ 末尾的审查补记（已知未修项）
