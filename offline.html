@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MIDI8BIT · 离线</title>
+<style>
+  html,body{height:100%;margin:0;background:#070907;color:#a8cca8;
+    font:13px/1.6 ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    background-image:radial-gradient(120% 80% at 50% -10%,#14260f 0%,#070907 62%);}
+  .box{padding:24px 22px;max-width:340px}
+  .dot{color:#7fe36f;font-size:26px;letter-spacing:4px;text-shadow:0 0 10px rgba(110,230,110,.6)}
+  h1{font-size:15px;letter-spacing:2px;color:#7fe36f;margin:14px 0 6px}
+  p{margin:6px 0;color:#6f8f6f;font-size:12px}
+  .key{color:#ffb000}
+  button{margin-top:16px;background:#0f1a0c;border:1px solid #2c4a24;color:#a8cca8;
+    font:inherit;padding:8px 16px;border-radius:4px}
+  button:active{background:#173012}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="dot">♪ ♪</div>
+    <h1>MIDI8BIT</h1>
+    <p>离线回退页 · 这一页还没进过缓存</p>
+    <p>检查网络后点下面重试；已加载过的版本可以离线直接打开</p>
+    <button onclick="location.reload()">重试</button>
+  </div>
+</body>
+</html>
